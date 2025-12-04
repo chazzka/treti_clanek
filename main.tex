@@ -1,0 +1,1631 @@
+\documentclass{article}
+
+\usepackage[english]{babel}
+
+\usepackage{graphicx} % Required for inserting images
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{forest}
+\usepackage{amsthm}
+\usepackage{cancel}
+\usepackage{tabularray}
+\usepackage{xfrac}
+\UseTblrLibrary{booktabs} % pro pěknější čáry
+\UseTblrLibrary{siunitx}  % pro čísla s oddělovačem
+\usepackage{xcolor}
+\usepackage{tabularray}
+\usepackage{xurl} % Enables flexible URL line breaking
+\usepackage{hyperref} % For clickable links
+\UseTblrLibrary{diagbox}
+
+
+\theoremstyle{remark}
+\newtheorem*{remark}{Remark}
+
+\newtheorem{proposition}{Proposition}[section]
+
+\newtheorem{theorem}{Theorem}[section]
+
+\newtheorem{lemma}{Lemma}[section]
+
+\theoremstyle{definition}
+\newtheorem{definition}{Definition}[section]
+
+
+\title{treti clanek}
+\author{Adam Ulrich}
+\date{November 2025}
+
+\begin{document}
+
+\maketitle
+
+\section{Introduction}
+\begin{itemize}
+    \item V citacich ukazeme ze je potreba resit missing data
+    \item pripomeneme strom a $c(k)$
+\end{itemize}
+
+Let an HS-Tree be built from $n$ data points. Then the expected value of the depth of a data point in the tree is given by (viz druhý článek, CITACE)
+
+\begin{align}
+c(n) &=
+\begin{cases}
+0  &  n = 0, \\
+1+\dfrac{\sum_{k=0}^{n} \binom{n}{k}c(k)}{2^n } &  n = 1,2,3,\dots.
+\end{cases}\label{eq:c'n_vyjadreno}
+\end{align}
+
+\section{Co je to crk -- lepsi verze}
+\begin{itemize}
+    \item nejprve zavedu problem, missing features v datech, chci pouzit nas HS tree, viz introduction, popis se ze to deje casto v datech a ZMINIT CLANEK BURDA NOVAK
+    \item chci pouzit nase c(n) protoze je to fajn funkce dobre aproximovatelna
+    \item mam problem kdyz nebyly missing data, proste jsme pouzili c(n), ale ted se nám kvuli Rkam exptected depth prodlouzi
+    \item takze po kazdem deleni se uz nezapocitava +1 k depth ale nejake +a k depth
+    \item a ted bychom chteli to $a$ takove, aby se celkova ocekavana depth nezmenila, to acko tedy vyrovna ten rozdil mezi tou depth c(k) mez missing a mezi (logicky vetsi) depth s missing.
+\end{itemize}
+
+
+\subsection{Jak teda $a$cko spocitat/odvodit?}
+
+Počet $R$ v uzlu odpovídá počtu \emph{missing} features.  
+
+Podobně jako v článku~\cite{ulrich2024} využijeme i zde analogii s mincemi pro vysvětlení
+náhodného dělení prostoru v Half-Space Trees. Tato metafora se ukázala jako mimořádně
+užitečná: každý prvek (data point) se při náhodném dělení chová podobně jako mince, která
+padá vlevo nebo vpravo podle toho, na které straně náhodně zvolené hyperroviny leží.
+
+HS-Tree tak můžeme interpretovat jako binární strom, kde se každý prvek v každém uzlu
+náhodně rozhoduje pro levou či pravou větev. Pokud známe počet prvků v uzlu, pak hloubka
+tohoto procesu závisí jen na tom, kolikrát se prvek rozdělí mezi větve---a tedy na počtu
+možných výsledků těchto ``náhodných hodů''.  
+
+Tato abstrakce nám dovoluje nahradit geometrické dělení jednoduchým modelem s mincemi:
+\begin{itemize}
+    \item H představuje data, která jednoznačně spadnou do levého half-space,
+    \item T představuje data, která spadnou do pravého half-space,
+    \item a zavádíme také stav R (\emph{edge}), který reprezentuje chybějící nebo
+          neurčitou hodnotu: takový prvek musíme poslat do obou větví současně.
+\end{itemize}
+
+Mince jsou tedy jen zjednodušený, ale přesný model chování bodů v Half-Space Tree:
+každý hod mincí zachycuje jeden krok náhodného dělení prostoru a umožňuje nám formálně
+vypsat všechny možné výsledky prvního rozdělení. Na těchto kombinacích pak stavíme
+výpočet očekávané hloubky.
+
+\paragraph{Motivace k tabulce stromečků.}
+V kořeni stromu hodíme všemi mincemi. Každá větev dostane odpovídající podmnožinu
+mincí a celý proces se v uzlech opakuje: znovu se hodí všemi mincemi, které do něj
+spadly. Strom pokračuje, dokud se mince nerozdělí natolik, že v listu zůstane pouze
+jediná mince.
+
+Očekávaná hloubka takového stromu je průměr přes všechny možné průběhy všech
+hodů. To je však obrovské množství možností.
+
+\paragraph{Proč nás zajímá pouze první hod?}
+Protože se pokusíme najít funkci takovou, která by dala očekávanou hloubku, za předpokladu, že dál už missing data nebudou a pojede se podle $c(n)$ kde n je počet prvků v aktuálním podstromu.
+
+Proto i Tabulka \ref{tab:stromecek_batch3_1R} když se podíváš zachycuje všechny možné výsledky \textbf{prvního rozdělení mincí}.
+
+Teď chceme tedy najít nějaký parametr $a$ takový, který když přidáme ke každé větvi s missing features (R) tak to vyjde stejně jakobychom missing features neměli $c(n)$. To je vyhodne zejmena protoze $c(n)$ uz umime velmi dobre pocitat i aproximovat.
+
+\subsection{Příklad s jedním R}
+Zkusme si tedy příklad kde máme jednu missing feature a batch size 3. Tabulka \ref{tab:stromecek_batch3_1R} nam ukaze jak to dopadne pro vsechny moznosti. Pomoci ni zkusime spocitat tedy ocekavanou hloubku $c(3)$, ale pozor, uz budeme přičítat parametr $a$ jako cenu za první krok, dál už je to $c(k)$, kde $k$ je pocet prvku v dané větvi (WLOG vždy levé).
+
+
+\begin{table}[ht]
+\centering
+\scriptsize
+\setlength{\tabcolsep}{6pt}
+\renewcommand{\arraystretch}{1.1}
+\caption{Všechny možné výsledky prvního hodu pro tři mince s jedním~R.}
+\label{tab:stromecek_batch3_1R}
+\begin{tabular}{|p{0.22\linewidth}|p{0.22\linewidth}|p{0.22\linewidth}|p{0.22\linewidth}|}
+\hline
+\begin{minipage}[t]{\linewidth}\begin{verbatim}
+{RHH}
+ /    \
+{RHH}  {R}
+\end{verbatim}\end{minipage} &
+\begin{minipage}[t]{\linewidth}\begin{verbatim}
+{RHT}
+ /    \
+{RH}   {RT}
+\end{verbatim}\end{minipage} &
+\begin{minipage}[t]{\linewidth}\begin{verbatim}
+{RTH}
+ /    \
+{RH}   {RT}
+\end{verbatim}\end{minipage} &
+\begin{minipage}[t]{\linewidth}\begin{verbatim}
+{RTT}
+ /    \
+{R}    {RTT}
+\end{verbatim}\end{minipage}
+\\ \hline
+\begin{minipage}[t]{\linewidth}\begin{verbatim}
+{HRH}
+ /    \
+{RHH}  {R}
+\end{verbatim}\end{minipage} &
+\begin{minipage}[t]{\linewidth}\begin{verbatim}
+{HRT}
+ /    \
+{RH}   {RT}
+\end{verbatim}\end{minipage} &
+\begin{minipage}[t]{\linewidth}\begin{verbatim}
+{TRH}
+ /    \
+{RH}   {RT}
+\end{verbatim}\end{minipage} &
+\begin{minipage}[t]{\linewidth}\begin{verbatim}
+{TRT}
+ /    \
+{R}    {RTT}
+\end{verbatim}\end{minipage}
+\\ \hline
+\begin{minipage}[t]{\linewidth}\begin{verbatim}
+{HHR}
+ /    \
+{RHH}  {R}
+\end{verbatim}\end{minipage} &
+\begin{minipage}[t]{\linewidth}\begin{verbatim}
+{HTR}
+ /    \
+{RH}   {RT}
+\end{verbatim}\end{minipage} &
+\begin{minipage}[t]{\linewidth}\begin{verbatim}
+{THR}
+ /    \
+{RH}   {RT}
+\end{verbatim}\end{minipage} &
+\begin{minipage}[t]{\linewidth}\begin{verbatim}
+{TTR}
+ /    \
+{R}    {RTT}
+\end{verbatim}\end{minipage}
+\\ \hline
+\end{tabular}
+\end{table}
+
+
+
+\begin{enumerate}
+    \item nejprve přidáme stromečky s R, například pro batch 3, stačí si uvědomit že ocekavana hloubka je hloubka vsech kombinací, takze nahore vezmeme pocet prvku faktorial a podelime vzdy poctem R,poctem H a poctem T v tomto poradi, vynasobime a+c(pocet prvku v leve vetvi) - WLOG bereme jen levou vetev:
+    $$c(3) = \frac{1}{12}\left(\frac{3!}{1!2!0!}(a+c(3))+\frac{3!}{1!0!2!}(a+c(1))+\frac{3!}{1!1!1!}(a+c(2))\right)$$
+    
+    \item vyjádříme $a$:
+    $$a_{1,3} = c(3) - \left( \tfrac14 c(3) + \tfrac14 c(1) + \tfrac12 c(2) \right)$$
+
+    \item vyjádříme obecně $a_{r,k}$ 
+
+\end{enumerate}
+
+
+Díky symetrii (WLOG můžeme předpokládat, že $R$ jsou vždy vlevo), pak:
+
+
+\begin{enumerate}
+\item
+        \begin{align}
+        c(3)
+        &= \frac{1}{4}\Bigl(
+            \binom{2}{0}(a_{1,3}+c(1))
+            + \binom{2}{1}(a_{1,3}+c(2))
+            + \binom{2}{2}(a_{1,3}+c(3))
+        \Bigr)
+    \end{align}
+
+
+
+\item vyjádříme $a$
+    
+
+    \[
+        a_{1,3}
+        = c(3)
+        -\left(
+            \frac{1}{4}\binom{2}{0}c(1)
+            + \frac{1}{4}\binom{2}{1}c(2)
+            + \frac{1}{4}\binom{2}{2}c(3)
+        \right).
+    \]
+
+\end{enumerate}
+
+Obecně tedy:
+
+\begin{align}
+    c(k) 
+        &=1+\dfrac{\sum_{k=0}^{n} \binom{n}{k}(a_{r,k}+c(k))}{2^n }=\\
+        &= \frac{\sum_{i=0}^{k-r} \binom{k-r}{i} (a_{r,k} + c(r+i))}
+                {\sum_{j=0}^{k-r} \binom{k-r}{j}} = \\
+        &= \frac{a_{r,k}\sum_{i=0}^{k-r} \binom{k-r}{i}  + \sum_{i=0}^{k-r} \binom{k-r}{i} c(r+i)}
+                {\sum_{j=0}^{k-r} \binom{k-r}{j}} = \\
+        &= a_{r,k}
+           + \frac{\sum_{i=0}^{k-r} \binom{k-r}{i} \cdot c(r+i)}
+                  {2^{\,k-r}}.
+\end{align}
+Odtud dostáváme
+\begin{align}
+    a_{r,k} = c(k) - \frac{\sum_{i=0}^{k-r} \binom{k-r}{i} \cdot c(r+i)}
+                  {2^{\,k-r}}
+\end{align}
+Označme si menšitel rozdílu (subtrahend) jako $c(r,k)$:
+\begin{definition}
+\label{definition:c(r,k)}
+Pro dvě celá čísla r,k větší nebo rovno nula $0\le r \le k$ definujme
+\begin{align}
+    c(r,k) = \frac{\sum_{i=0}^{k-r} \binom{k-r}{i} \cdot c(r+i)}{2^{\,k-r}}.
+\end{align}    
+\end{definition}
+
+
+Můžeme zkusit par hodnot do Tabulky \ref{tab:cprime_values} (pro $c(n)$) a do Tabulky \ref{tab:crk_values} (pro $c(r,k)$).
+\begin{table}[htp]
+\centering
+\caption{Sample values of $c(n)$ with decimal and fractional approximations}
+\begin{tblr}{
+  colspec = {r S[table-format=2.5] S},
+  column{2-3} = {mode=math},
+  row{1} = {guard,font=\bfseries},
+}
+{n} & {Decimal} & {Fraction} \\
+\midrule
+0  & 0        & \sfrac{0}{1} \\
+1  & 2        & \sfrac{2}{1} \\
+2  & 2.667    & \sfrac{8}{3} \\
+3  & 3.14286  & \sfrac{22}{7} \\
+4  & 3.505    & \sfrac{368}{105} \\
+5  & 3.794    & \sfrac{2\,470}{651} \\
+6  & 4.0348   & \sfrac{7\,880}{1\,953} \\
+7  & 4.240    & \sfrac{150\,266}{35\,433} \\
+8  & 4.4210   & \sfrac{13\,315\,424}{3\,011\,805} \\
+9  & 4.581    & \sfrac{2\,350\,261\,538}{513\,010\,785} \\
+10 & 4.725    & \sfrac{1\,777\,792\,792}{376\,207\,909} \\
+11 & 4.856    & \sfrac{340\,013\,628\,538}{70\,008\,871\,793} \\
+\vdots & \vdots & \vdots \\
+1024 & 11.335    & \vdots \\
+2048 & 12.3331   & \vdots \\
+4096 & 13.3329   & \vdots \\
+8192 & 14.3328   & \vdots \\
+%\bottomrule
+\end{tblr}
+\label{tab:cprime_values}
+\end{table}
+
+\begin{table}[ht]
+\centering
+\caption{$c(r,k)$ values}
+\label{tab:crk_values}
+
+\begin{tblr}{
+  colspec = {c c c c c c c},
+  hline{2} = {1pt},
+  vline{2} = {1pt},
+  row{1} = {font=\bfseries},
+  row{2-Z} = {rowsep=6pt},
+  column{1} = {font=\bfseries},
+}
+
+% Horní levá buňka: r (řádky), k (sloupce)
+\diagbox{r}{k}
+& 0 & 1 & 2 & 3 & 4 & 5 \\
+
+0 &
+$\mathbf{\frac{0}{1}}$ &
+$\frac{1}{1}$ &
+$\frac{5}{3}$ &
+$\frac{15}{7}$ &
+$\frac{263}{105}$ &
+$\frac{1819}{651}$ \\
+
+1 &
+-- &
+$\mathbf{\frac{2}{1}}$ &
+$\frac{7}{3}$ &
+$\frac{55}{21}$ &
+$\frac{43}{15}$ &
+$\frac{10037}{3255}$ \\
+
+2 &
+-- & -- &
+$\mathbf{\frac{8}{3}}$ &
+$\frac{61}{21}$ &
+$\frac{109}{35}$ &
+$\frac{3581}{1085}$ \\
+
+3 &
+-- & -- & -- &
+$\mathbf{\frac{22}{7}}$ &
+$\frac{349}{105}$ &
+$\frac{3783}{1085}$ \\
+
+4 &
+-- & -- & -- & -- &
+$\mathbf{\frac{368}{105}}$ &
+$\frac{1697}{465}$ \\
+
+5 &
+-- & -- & -- & -- & -- &
+$\mathbf{\frac{2470}{651}}$ \\
+
+\end{tblr}
+\end{table}
+
+
+\subsection{Interesting consequences of the definitions}
+
+The mapping $c(r,k)$ satisfies the following boundary identities:
+
+\begin{lemma}
+\label{lemma:crk}
+The following relations hold for all $k \ge 0$:
+\begin{enumerate}
+    \item $c(k,k) = c(k)$,
+    \item $c(0,k) = c(k) - 1$, for all $k > 0$.
+\end{enumerate}
+\end{lemma}
+
+\begin{proof}
+
+\begin{align*}
+c(k,k)&= \frac{\sum_{i'=0}^{0} \binom{0}{i'}\,c(k+i')}{2^{0}}
+     = \binom{0}{0}\,c(k)
+     = c(k).\\
+c(n) &= 1+\frac{\sum_{k=0}^{n} \binom{n}{k} c(k)}{2^n} =1+c(0,k).
+\end{align*}
+
+\end{proof}
+
+
+\section{Defining \(c(r,k)\) independently of \(c(k)\)}
+While \(c(r,k)\) can be computed directly from the values \(c(k)\) as illustrated 
+above, this approach is unnecessarily cumbersome once one recalls the structure 
+of \(c(k)\).  We therefore seek an intrinsic characterisation of \(c(r,k)\) that 
+does not rely on \(c(k)\).
+
+\subsection{\( c(r, k) \) as a solution to a system of linear equations}
+
+\begin{theorem}
+\label{theorem:3equations_of_crk}
+For integers \(k>r\ge 0\), the function \(c(r,k)\) satisfies:
+\begin{align}
+    c(0,0) &= 0, \label{eq:c00}\\
+    c(k,k)-c(0,k) &= 1, \label{eq:ckk-c0k}\\
+    c(r,k) &= \frac{c(r,k-1) + c(r+1,k)}{2}. \label{eq:crk_to_proof}
+\end{align}
+\end{theorem}
+
+\begin{proof}
+Equalities~\eqref{eq:c00} and~\eqref{eq:ckk-c0k} follow directly from 
+Lemma~\ref{lemma:crk}.  
+To prove~\eqref{eq:crk_to_proof}, we expand the right–hand side using the 
+definition of \(c(r,k)\) and simplify accordingly.
+\begin{multline*}
+\frac{c(r,k-1)+c(r+1,k)}{2}=\\
+=\frac{1}{2}\left(\frac{\sum_{i=0}^{k-1-r}\binom{k-1-r}{i}c(r+i)}{2^{k-1-r}}+\frac{\sum_{i=0}^{k-r-1}\binom{k-r-1}{i}c(r+1+i)}{2^{k-r-1}}\right)=\\
+ =\frac{1}{2^{k-r}}\left(\textstyle\binom{k-1-r}{0}\,c(r)
+ +\sum_{i=1}^{k-r-1}\left(\binom{k-1-r}{i}+\binom{k-r-1}{i-1}\right)c(r+i)
+ +\binom{k-r-1}{k-r-1}\,c(k)\right) =\\
+=\frac{1}{2^{k-r}}\left(\binom{k-r}{0}\,c(r)+\sum_{i=1}^{k-r-1}\,\binom{k-r}{i}\,c(r+i)+\binom{k-r}{k-r}\,c(k)\right)=\\
+=\frac{1}{2^{k-r}}\sum_{j=0}^{k-r}c(r+j)\binom{k-r}{j}=c(r,k)
+\end{multline*}
+
+\end{proof}
+
+
+\subsection{Uniqueness of the coefficients}
+
+In this subsection we show that the values \(c(r,k)\) are uniquely determined.
+
+Mějme sadu rovnic
+\begin{align*}
+    c_{0,0}&=0\\
+    c_{k,k}-c_{0,k}&=1\\
+    c_{r,k}&=\frac{c_{r,k-1}+c_{r+1,k}}{2}
+\end{align*}
+Tato soustava má jediné řešení, dokážu:
+$c_{0,0}=0$, to je jednoznačně dané.
+Pak indukcí: $c_{r,k-1}\rightarrow c_{r,k}$
+Pod podmínkou $0\le r\le k$,$r,k\in \mathbb{N}$ přepíšu soustavu do tvaru:
+\begin{align*}
+    c_{r,k-1}\\
+    2c_{r,k}-c_{r+1,k}=c_{r,k-1}\\
+    c_{k,k}-c_{0,k}=1
+\end{align*}
+A zapíšu do matice
+
+\[
+\left[
+\begin{array}{ccccc|c}
+    2 & -1 & 0 & \cdots & 0 & c_{0,k-1} \\
+    0 & 2 & -1 & \cdots & 0 & c_{1,k-1} \\
+    \vdots & \vdots & \vdots & \ddots & \vdots & \vdots \\
+    0 & 0 & \cdots & 2 & -1 & c_{k-1,k-1} \\
+    -1 & 0 & \cdots & 0 & 1 & 1
+\end{array}
+\right]
+\]
+
+Snadno z Laplaceova rozvoje podle posledního plyne, že determint matice soustavy je nenulový 
+\begin{multline*}
+  \begin{vmatrix}
+    2 & -1 & 0 & \cdots & 0& 0 \\
+    0 & 2 & -1 & \cdots & 0& 0 \\
+    0 & 0 & 2 & \cdots & 0& 0 \\
+    \vdots & \vdots & \vdots & \ddots & \vdots &\vdots\\
+    0 & 0 & 0&\cdots & 2 & -1  \\
+    -1 & 0 & 0&\cdots & 0 & 1 
+  \end{vmatrix}=2^k-1\\
+  % =1\,(-1)^{2k}\begin{vmatrix}
+  %   2 & -1 & 0 & \cdots & 0& 0 \\
+  %   0 & 2 & -1 & \cdots & 0& 0 \\
+  %   0 & 0 & 2 & \cdots & 0& 0 \\
+  %   \vdots & \vdots & \vdots & \ddots & \vdots &\vdots\\
+  %   0 & 0 & 0&\cdots & 2 & -1  \\
+  % \end{vmatrix}+
+  % (-1)\,(-1)^{k+1}\begin{vmatrix}
+  %    -1 & 0 & \cdots & 0& 0 \\
+  %    2 & -1 & \cdots & 0& 0 \\
+  %    \vdots & \vdots & \ddots & \vdots &\vdots\\
+  %    0 & 0&\cdots & -1 & 0  \\
+  %    0 & 0&\cdots & 2 & -1  \\
+  % \end{vmatrix}=
+\end{multline*}
+
+% Determinant matice $D$ je nenulový, protože:
+% Přímo z definice jediné nenulové permutace jsou:
+% \begin{enumerate}
+%     \item $k+1$ řádků od $2$ do $k$, dává $2^k$
+%     \item permutace $(-1)^{k+1}$
+%     Ale musime ještě správné znaménko, takže počet inverzí je počet prvků před jedničkou, tj. $k$. Pak počet permutací je $2^k+(-1)^{2k+1}=2^k-1$
+% \end{enumerate}
+% Tím pádem přímo z definice je determinant nenulový $\rightarrow$ soustava má 1 řešení.
+% Známe tedy $c_{r,k-1}$ pro $0,....k-1$.
+% Z toho tedy jednoznačně určíme $c(r,k)$ pro $r=0,....k$.
+
+\begin{remark}
+It is possible to compute column $k+1$ from column $k$.
+
+We now express each value $c(r,k)$, for $0 \le r \le k$, solely in terms of the
+preceding column $c(r,k-1)$.
+
+\begin{enumerate}
+    \item Iterating the $k$–recurrence.
+
+Starting from
+\[
+c(k+1,n)=2c(k,n)-c(k,n-1),
+\]
+we expand successively:
+\begin{align*}
+c(1,n) &= 2c(0,n)-c(0,n-1),\\
+c(2,n) &= 2c(1,n)-c(1,n-1)
+       = 2^{2}c(0,n)-2c(0,n-1)-c(1,n-1),\\
+c(3,n) &= 2c(2,n)-c(2,n-1)
+       = 2^{3}c(0,n)-2^{2}c(0,n-1)-2c(1,n-1)-c(2,n-1),
+\end{align*}
+and so on.  
+By induction, for every $k\ge1$,
+\begin{align}
+c(k,n)
+ = 2^{k}c(0,n)
+   -\sum_{j=0}^{k-1}2^{\,k-1-j}\,c(j,n-1).
+\label{eq:ckn_iterated}
+\end{align}
+The case $k=0$ is trivial: $c(0,n)=c(0,n)$.
+
+\item Closing the formula using the boundary condition.
+Setting $k=n$ in \eqref{eq:ckn_iterated} and using the boundary relation
+$c(n,n)=c(0,n)+1$, we obtain
+\[
+2^{n}c(0,n)-\sum_{j=0}^{n-1}2^{\,n-1-j}\,c(j,n-1)=c(0,n)+1.
+\]
+Solving for $c(0,n)$ gives
+\begin{align}
+c(0,n)
+ = \frac{
+        1 + \displaystyle\sum_{j=0}^{n-1}2^{\,n-1-j}c(j,n-1)
+      }{2^{n}-1}.
+\label{eq:c0n_closed}
+\end{align}
+
+\item Column transformation.
+
+Define the weighted sum
+\[
+S_n := \sum_{j=0}^{n-1}2^{\,n-1-j}\,c(j,n-1).
+\]
+Then by \eqref{eq:c0n_closed} and \eqref{eq:ckn_iterated},
+\begin{align*}
+c(0,n) &= \frac{1+S_n}{2^{n}-1},\\[2pt]
+c(k,n) &= 2^{k}c(0,n)
+         -\sum_{j=0}^{k-1}2^{\,k-1-j}\,c(j,n-1),
+         \qquad k=1,\dots,n.
+\end{align*}
+
+\item Example.
+
+For $n=2$ let
+\[
+\bigl(c(0,2),c(1,2),c(2,2)\bigr)
+   =\left(\frac{5}{3},\frac{7}{3},\frac{8}{3}\right).
+\]
+Then
+\[
+S_3
+ = 2^{2}c(0,2)+2^{1}c(1,2)+2^{0}c(2,2)
+ = 14,
+\]
+and hence
+\[
+c(0,3)=\frac{1+S_3}{2^{3}-1}=\frac{15}{7}.
+\]
+The remaining values follow from the recursion:
+\begin{align*}
+c(1,3)
+ &=2c(0,3)-c(0,2)
+ =\frac{55}{21},\\[2pt]
+c(2,3)
+ &=4c(0,3)-\bigl(2c(0,2)+c(1,2)\bigr)
+ =\frac{61}{21},\\[2pt]
+c(3,3)
+ &=8c(0,3)-\bigl(4c(0,2)+2c(1,2)+c(2,2)\bigr)
+ =\frac{22}{7}.
+\end{align*}
+Thus the column for $n=3$ is
+\[
+\bigl(c(0,3),c(1,3),c(2,3),c(3,3)\bigr)
+=\left(\frac{15}{7},\frac{55}{21},\frac{61}{21},\frac{22}{7}\right).
+\]
+\end{enumerate}
+
+\end{remark}
+
+
+
+% stara ceska verze:
+% \paragraph{Cíl.}
+% Chceme vyjádřit \(c(k,n)\) (pro \(0\le k\le n\)) jen pomocí sloupce \(n{-}1\),
+% tj. hodnot \(c(j,n{-}1)\) pro \(0\le j\le n{-}1\).
+
+% \paragraph{Krok 1: rozvinutí rekurence v~$k$.}
+
+% \paragraph{Iterační rozvinutí rekurence.}
+% Vycházíme z~rekurence
+% \[
+% c(k{+}1,n)=2c(k,n)-c(k,n{-}1).
+% \]
+
+% Postupným dosazováním dostaneme:
+
+% \[
+% \begin{aligned}
+% c(1,n) &= 2c(0,n)-c(0,n-1), \\
+% c(2,n) &= 2c(1,n)-c(1,n-1) \\
+%        &= 2\!\bigl(2c(0,n)-c(0,n-1)\bigr)-c(1,n-1) \\
+%        &= 2^{2}c(0,n)-2c(0,n-1)-c(1,n-1), \\
+% c(3,n) &= 2c(2,n)-c(2,n-1) \\
+%        &= 2\!\left(2^{2}c(0,n)-2c(0,n-1)-c(1,n-1)\right)-c(2,n-1) \\
+%        &= 2^{3}c(0,n)-2^{2}c(0,n-1)-2c(1,n-1)-c(2,n-1), \\
+% &\qquad\vdots \\
+% c(k,n) &= 2^{k}c(0,n)
+%         \;-\;\Bigl(2^{k-1}c(0,n-1)+2^{k-2}c(1,n-1)+\cdots+2^{0}c(k-1,n-1)\Bigr).
+% \end{aligned}
+% \]
+
+% Kompaktně:
+% \[
+% \boxed{
+% c(k,n)
+% =
+% 2^{k}c(0,n)
+% -\sum_{j=0}^{k-1}2^{\,k-1-j}\,c(j,n-1).
+% }
+% \]
+
+
+% Z \(c(k{+}1,n)=2c(k,n)-c(k,n{-}1)\) iterací dostaneme
+% \[
+% c(k,n)=2^{k}\,c(0,n)\;-\;\sum_{j=0}^{k-1} 2^{\,k-1-j}\,c(j,n-1),\qquad k\ge 1,
+% \]
+% a triviálně \(c(0,n)=c(0,n)\).
+
+% \paragraph{Krok 2: uzavření pomocí okraje.}
+% Pro \(k=n\) a okraj \(c(n,n)=c(0,n)+1\) platí
+% \[
+% 2^{n}c(0,n)-\sum_{j=0}^{n-1}2^{\,n-1-j}c(j,n-1)=c(0,n)+1,
+% \]
+% tedy
+% \[
+% c(0,n)=\frac{1+\displaystyle\sum_{j=0}^{n-1}2^{\,n-1-j}\,c(j,n-1)}{2^{n}-1}.
+% \]
+
+% Nejprve spočti vážený součet
+% \[
+% S_n:=\sum_{j=0}^{n-1}2^{\,n-1-j}\,c(j,n-1).
+% \]
+% Pak
+% \[
+% \boxed{\;
+% c(0,n)=\frac{1+S_n}{2^{n}-1},\qquad
+% c(k,n)=2^{k}c(0,n)-\sum_{j=0}^{k-1}2^{\,k-1-j}\,c(j,n-1)\ \ (k=1,\dots,n).
+% \;}
+% \]
+
+% \paragraph{Mini-příklad}
+% \begin{enumerate}
+%     \item Máme sloupec pro \(n=2\):
+%     \[
+%     (c(0,2),c(1,2),c(2,2))=\left(\frac{5}{3},\frac{7}{3},\frac{8}{3}\right).
+%     \]
+
+%     \item Spočítáme vážený součet
+%     \[
+%     S_3
+%     =2^2c(0,2)+2^1c(1,2)+2^0c(2,2)
+%     =\frac{20}{3}+\frac{14}{3}+\frac{8}{3}
+%     =14.
+%     \]
+
+%     \item Získáme
+%     \[
+%     c(0,3)=\frac{1+S_3}{2^3-1}
+%     =\frac{15}{7}.
+%     \]
+
+%     \item Další hodnoty dopočítáme vzorcem
+%     \[
+%     c(k,3)=2^k c(0,3)-\sum_{j=0}^{k-1}2^{k-1-j}c(j,2).
+%     \]
+
+%     \begin{enumerate}
+%         \item Pro \(k=1\):
+%         \[
+%         c(1,3)=2c(0,3)-c(0,2)
+%         =\frac{30}{7}-\frac{5}{3}
+%         =\frac{55}{21}.
+%         \]
+
+%         \item Pro \(k=2\):
+%         \[
+%         c(2,3)=4c(0,3)-\left(2c(0,2)+c(1,2)\right)
+%         =\frac{60}{7}-\frac{17}{3}
+%         =\frac{61}{21}.
+%         \]
+
+%         \item Pro \(k=3\):
+%         \[
+%         c(3,3)=8c(0,3)-\left(4c(0,2)+2c(1,2)+c(2,2)\right)
+%         =\frac{120}{7}-14
+%         =\frac{22}{7}.
+%         \]
+%     \end{enumerate}
+
+%     \item Výsledný sloupec pro \(n=3\) je
+%     \[
+%     \bigl(c(0,3),c(1,3),c(2,3),c(3,3)\bigr)
+%     =
+%     \left(\frac{15}{7},\frac{55}{21},\frac{61}{21},\frac{22}{7}\right).
+%     \]
+% \end{enumerate}
+
+
+\section{Alternative definition}
+
+\subsection{Theory}
+\url{https://physics.bme.hu/sites/physics.bme.hu/files/users/BMETE15AF53_kov/Kreyszig%20-%20Introductory%20Functional%20Analysis%20with%20Applications%20(1).pdf} . 
+
+The definitions used in this section follow the terminology of Kreyszig~\cite{kreyszig1991introductory}.
+
+
+% \begin{definition}[The sequence space $\ell^{p}$]
+% \label{kreyszig1.2-3}
+% Let $p \ge 1$ be a fixed real number.
+% The space $\ell^{p}$ consists of all sequences 
+% \begin{align}
+% x = (\xi_j) = (\xi_1, \xi_2, \ldots)    
+% \end{align}
+% of real or complex numbers for which the series
+% \begin{align}
+% |\xi_1|^{p} + |\xi_2|^{p} + \cdots    
+% \end{align}
+% is convergent.  
+% Equivalently,
+% \begin{align}
+% \sum_{j=1}^{\infty} |\xi_j|^{p} < \infty,
+% \qquad (p \ge 1\ \text{fixed})\label{eq:l2iflesstheninfty}.
+% \end{align}
+
+% The metric on $\ell^{p}$ is given by
+% \[
+% d(x,y)
+%  = \left( 
+%         \sum_{j=1}^{\infty} |\xi_j - \eta_j|^{p}
+%    \right)^{1/p},
+% \]
+% where $y = (\eta_j)$ and the series $\sum |\eta_j|^{p}$ is also finite.
+
+% \end{definition}
+% The space $\ell^{p}$ introduced earlier admits a natural norm structure,
+% which turns it into a fundamental example of a Banach space.  
+
+
+% \begin{definition}[Norm on $\ell^{p}$]
+% The norm on $\ell^{p}$ is defined by
+
+% \begin{align}
+% \|x\| = \left( \sum_{j=1}^{\infty} |\xi_j|^{p} \right)^{1/p}\label{eq:lpnorm},
+% \end{align}
+% where $x = (\xi_j)$ is a sequence in $\ell^{p}$.
+
+% This norm induces the metric introduced previously in 1.2--3, since
+% \[
+% d(x,y) = \|x - y\|
+%        = \left( \sum_{j=1}^{\infty} |\xi_j - \eta_j|^{p} \right)^{1/p},
+% \]
+% for $y = (\eta_j)$.  
+% Kreyszig also established the completeness of $\ell^{p}$ with respect to this metric (see section 1.5--4. in \cite{kreyszig1991introductory}).
+% \end{definition}
+
+% The concept of an inner product is central to the study of Hilbert spaces.
+% We follow the exposition of Kreyszig~\cite[Section~3.1]{kreyszig1991introductory}.
+
+% \begin{definition}[Inner product space and Hilbert space]
+% Let $X$ be a vector space over a scalar field $\mathbb{K}$ (either $\mathbb{R}$ or $\mathbb{C}$).
+% An \emph{inner product} on $X$ is a mapping 
+% \[
+% \langle \cdot , \cdot \rangle : X \times X \to \mathbb{K},
+% \]
+% which associates to each pair of vectors $x,y \in X$ a scalar $\langle x , y\rangle$
+% and satisfies the following properties for all vectors $x,y,z \in X$ and all scalars $\alpha$:
+
+% \begin{align*}
+% \text{(IP1)}\quad &\langle x+y, z \rangle = \langle x, z \rangle + \langle y, z \rangle, \\
+% \text{(IP2)}\quad &\langle \alpha x, y \rangle = \alpha \langle x, y \rangle, \\
+% \text{(IP3)}\quad &\langle x, y \rangle = \overline{\langle y, x \rangle}, \\
+% \text{(IP4)}\quad &\langle x, x \rangle \ge 0, 
+% \qquad 
+% \langle x, x \rangle = 0 \ \Longleftrightarrow\ x = 0.
+% \end{align*}
+
+% A vector space equipped with an inner product is called an \emph{inner product space}
+% (or pre-Hilbert space).  
+% If the space is complete with respect to the metric induced by the inner product,
+% it is called a \emph{Hilbert space}.  
+% The corresponding norm is given by
+% \begin{equation}
+% \|x\| = \sqrt{\langle x, x \rangle}.
+% \end{equation}
+
+% Further details can be found in Kreyszig~\cite[Section~3.1]{kreyszig1991introductory}.
+% \end{definition}
+
+% Precisely, from now on, we shall mainly operate in the Hilbert sequence
+% space $\ell^{2}$. This space provides a concrete and well–understood model of a
+% Hilbert space and is a standard setting for the analysis of operators on
+% infinite-dimensional spaces. We follow the presentation of 
+% Kreyszig~\cite[Section~3.1--6]{kreyszig1991introductory}.
+
+\begin{definition}[Hilbert sequence space $\ell^{2}$]
+The space $\ell^{2}$ consists of all sequences 
+$x = (\xi_j) = (\xi_1, \xi_2, \ldots)$ of real or complex numbers for which
+\begin{align}
+\sum_{j=1}^{\infty} |\xi_j|^{2} < \infty \label{eq:l2iflesstheninfty}
+\end{align}
+that is, the series of squares is convergent.  
+
+It is equipped with the inner product
+\[
+\langle x , y \rangle 
+  = \sum_{j=1}^{\infty} \xi_j \,\overline{\eta_j},
+\]
+where $x = (\xi_j)$ and $y = (\eta_j)$ belong to $\ell^{2}$.  
+The convergence of this series follows from the Cauchy--Schwarz inequality and
+the assumption that $x,y\in \ell^{2}$.  
+
+The induced norm is given by
+\[
+\|x\| = \langle x , x \rangle^{1/2}
+      = \left( \sum_{j=1}^{\infty} |\xi_j|^{2} \right)^{1/2}.
+\]
+
+The completeness of $\ell^{2}$ with respect to this norm was established in Kreyszig's
+Section~1.5--4, so $\ell^{2}$ forms a prototypical example of a Hilbert space.
+\end{definition}
+
+
+\subsection{Defining $c(r,k)$ in Hilbert space}
+
+In the sequel we work entirely inside the Hilbert sequence space $\ell^{2}$, 
+so vectors are understood as infinite sequences.  
+In particular, a polynomial will be represented not by its symbolic form
+$a_0 + a_1 x + \cdots + a_n x^n$, but by the corresponding coefficient 
+sequence $(a_0, a_1, \ldots, a_n, 0, 0, 0, \dots)$, whose zeros extend to infinity.  
+This identification is standard when polynomials are viewed as elements of a 
+Hilbert space of sequences. However, we shall stick to the symbolic form notation.
+
+\begin{definition}[Multiplication vector $v_c$]
+Define the vector
+\[
+v_c = \bigl(0,\, 1,\,-\tfrac{1}{3},\,\tfrac{1}{7},\,\ldots,\,\tfrac{(-1)^{i+1}}{2^i-1},\,\ldots\bigr).
+\]
+\end{definition}
+
+\begin{lemma}
+    Multiplication vector $v_c$ satisfies all conditions for it to be part of $\ell^{2}$.
+\end{lemma}
+
+\begin{proof}
+We recall the condition for item to be in $\ell^{2}$:
+\begin{align}
+\sum_{j=1}^{\infty} |\xi_j|^{2} < \infty. \label{eq:l2iflesstheninfty}
+\end{align}
+Indeed, for $\xi_j = \dfrac{(-1)^{j+1}}{2^j-1}$ we have
+\[
+|\xi_j|^{2} = \frac{1}{(2^j-1)^2} \le \frac{1}{4^j}.
+\]
+Thus,
+\[
+\sum_{j=1}^{\infty} |\xi_j|^{2} \le \sum_{j=1}^{\infty} \frac{1}{4^j},
+\]
+which is a convergent geometric series with ratio $\tfrac{1}{4}$. Therefore, $v_c \in \ell^{2}$.
+\end{proof}
+
+\begin{definition}[Infinite polynomial $P_{r,k}$]
+For $k=0,1\dots$ and $r=0,1 \dots k$ we define the polynomial $P_{r,k}(x)$
+\[
+P_{r,k}(x) = (1+2x)^{r}(1+x)^{\,k-r}.
+\]
+In the Hilbert sequence space $\ell^{2}$ we identify $P_{r,n}$ with its
+coefficient sequence
+\[
+P_{r,k} \;\equiv\; (\alpha_0, \alpha_1, \alpha_2, \ldots),
+\]
+where $\alpha_j$ is the coefficient of $x^{j}$ and all remaining entries are
+$0$.  
+Thus each $P_{r,k}$ is viewed as an element of $\ell^{2}$ and inner products
+such as $\langle P_{r,k}, v^{(k)} \rangle$ are understood in the standard 
+Hilbert space sense.
+\end{definition}
+
+We now show that the sequence $P_{r,n}$ belongs to the space $\ell^{2}$ by 
+verifying that it satisfies the defining condition~\eqref{eq:l2iflesstheninfty}.
+
+\begin{proof}
+By Definition \eqref{eq:l2iflesstheninfty} we identify the polynomial
+$P_{r,k}(x)$ with its coefficient sequence
+\[
+P_{r,k} \;\equiv\; (\alpha_0, \alpha_1, \ldots, \alpha_k, 0, 0, \dots).
+\]
+In particular, $\alpha_j = 0$ for all $j > k$.  
+Therefore the series in~\eqref{eq:l2iflesstheninfty} reduces to a finite sum,
+\[
+\sum_{j=0}^{\infty} |\alpha_j|^{2}
+  = \sum_{j=0}^{k} |\alpha_j|^{2} < \infty.
+\]
+Hence $P_{r,k}$ satisfies the defining condition~\eqref{eq:l2iflesstheninfty},
+and we conclude that $P_{r,k} \in \ell^{2}$.
+\end{proof}
+
+We can directly show that the polynomials $P_{r,k}$ satisfy the same three–term
+recurrence as $c(r,k)$:
+\begin{align}
+2P_{r,k}(x) = P_{r,k-1}(x) + P_{r+1,k}(x), \qquad 0 \le r < k\label{eq:2prk=prk+prk},    
+\end{align}
+
+
+where $P_{r,k}(x) = (1+2x)^{r}(1+x)^{\,k-r}$.
+
+\begin{proof}
+By definition,
+\[
+P_{r,k-1}(x) = (1+2x)^{r}(1+x)^{k-1-r},
+\qquad
+P_{r+1,k}(x) = (1+2x)^{r+1}(1+x)^{k-1-r}.
+\]
+Hence
+\begin{align*}
+P_{r,k-1}(x) + P_{r+1,k}(x)
+&= (1+2x)^{r}(1+x)^{k-1-r}\bigl(1 + (1+2x)\bigr) \\
+&= (1+2x)^{r}(1+x)^{k-1-r}(2+2x) \\
+&= 2(1+2x)^{r}(1+x)^{k-r} \\
+&= 2P_{r,k}(x),
+\end{align*}
+which is the claimed identity.
+\end{proof}
+
+
+\begin{theorem}
+For integers $0 \le r \le k$, the coefficient $c(r,k)$ can be expressed as the
+inner product of the multiplication vector $v_c$ and the polynomial $P_{r,k}$ in
+the Hilbert sequence space $\ell^{2}$:
+\[
+c(r,k) = \langle v_c, P_{r,k} \rangle.
+\]
+\end{theorem}
+
+% TODO: TOTO CELE SMAZAT
+% Řekneme že Prk vychází z pascala ale je to trochu říznuté:
+
+
+% Klasický binomický rozvoj dává řádky Pascalova trojúhelníku:
+% \[
+% (1+x)^n=\sum_{j=0}^n \binom{n}{j}x^j.
+% \]
+% Pro \(n=4\) (což je matice 5x5) dostaneme koeficienty \([1,4,6,4,1]\).
+% To je \emph{první (horní) řádek} naší matice \(5\times5\). Další řádky se u nás ale liší
+
+% \[
+% \begin{bmatrix}
+% \textbf{1} & \textbf{4} & \textbf{6} & \textbf{4} & \textbf{1} \\
+% 1 & 5 & 9 & 7 & 2 \\
+% 1 & 6 & 13 & 12 & 4 \\
+% 1 & 7 & 18 & 19 & 8 \\
+% 1 & 8 & 24 & 32 & 16 \\
+% \end{bmatrix}
+% \]
+
+% Pro úplnost Tabulka \ref{tab:pascal_matrices} obsahuje predchozi matice.
+
+% \begin{table}[h]
+% \centering
+% \renewcommand{\arraystretch}{1.2}
+% \setlength{\tabcolsep}{8pt}
+% \begin{tabular}{c c c c}
+% \toprule
+% $1\times 1$ & $2\times 2$ & $3\times 3$ & $4\times 4$ \\
+% \midrule
+% $\begin{bmatrix}
+% 1
+% \end{bmatrix}$
+% &
+% $\begin{bmatrix}
+% 1 & 1 \\
+% 1 & 2
+% \end{bmatrix}$
+% &
+% $\begin{bmatrix}
+% 1 & 2 & 1 \\
+% 1 & 3 & 2 \\
+% 1 & 4 & 4
+% \end{bmatrix}$
+% &
+% $\begin{bmatrix}
+% 1 & 3 & 3 & 1 \\
+% 1 & 4 & 5 & 2 \\
+% 1 & 5 & 8 & 4 \\
+% 1 & 6 & 12 & 8
+% \end{bmatrix}$ \\
+% \bottomrule
+% \end{tabular}
+% \caption{První čtyři matice (od $1\times1$ do $4\times4$).}
+% \label{tab:pascal_matrices}
+% \end{table}
+
+% Tedy řádek s $r$ kroky typu $R$ je reprezentován polynomem
+% \[
+% P_{r,n}(x)=(1+2x)^r(1+x)^{\,n-r}.
+% \]
+
+% \paragraph{Mini–příklad.}
+% Pro $n=4$ a $r=1$ máme
+% \[
+% P_{1,4}(x)=(1+2x)(1+x)^3.
+% \]
+% Rozviňme $(1+x)^3=1+3x+3x^2+x^3$, takže
+% \[
+% P_{1,4}(x)=(1+2x)(1+3x+3x^2+x^3).
+% \]
+% Po roznásobení dostáváme
+% \[
+% P_{1,4}(x)=1+5x+9x^2+7x^3+2x^4.
+% \]
+
+
+% \noindent
+% Zatimco klasický pascalovský řádek pro $n=4$ je
+% \[
+% (1+x)^4=1+4x+6x^2+4x^3+x^4.
+% \]
+
+
+% \paragraph{Zavedeme váhový vektor.}
+% Definuj
+% \[
+% \mathbf{v}^{(k)}=\biggl(0,\;\frac{(-1)^{0}}{2^1-1},\;\frac{(-1)^{1}}{2^2-1},\;\dots,\;\frac{(-1)^{k-1}}{2^k-1}\biggr)
+% =\Bigl(0,\;1,\;-\tfrac13,\;\tfrac17,\;-\tfrac1{15},\;\dots\frac{(-1)^{k-1}}{2^k-1}\Bigr).
+% \]
+
+
+% \paragraph{Příklad 1: \(c(0,3)\).}
+% První řádek (\(r=0\)) matice \(4\times 4\) je
+% \[
+% \mathbf{M}_0 = (1,\,3,\,3,\,1).
+% \]
+
+% Respektive použijeme když použijeme přímo polynom $P_{r,k}$:
+% \begin{align*}
+% P_{r,n}(x)=(1+2x)^r(1+x)^{\,n-r}\\
+% P_{0,3}(x) = (1+x)^3 = x^{3} + 3x^{2} + 3x + 1.    
+% \end{align*}
+
+% Mějme Euklidovský prostor. Skalární součin s váhovým vektorem \(\mathbf{v}^{(3)}\) dává
+% \[
+% c(0,3)=\langle\mathbf{M}_0, \mathbf{v}^{(3)}\rangle
+% = 3\cdot 1 + 3\cdot\!\Bigl(-\tfrac{1}{3}\Bigr) + 1\cdot \tfrac{1}{7}
+% = \tfrac{15}{7}.
+% \]
+
+% Z toho lze tedy videt
+% \begin{theorem}
+% Pro $k>r\ge0$ zobrazení $c(r,k)$ splňuje následující
+
+% \[
+% c(r,k) = \langle (0,\bigg(\frac{(-1)^{j-1}}{2^j-1}\bigg)^{\infty}_{j=1}), P_{r,k} \rangle.
+% \]
+% \end{theorem}
+
+
+
+
+With $c(r,k)$ calculated this way, let us prove it satisfies all three equations proposed in Theorem \ref{theorem:3equations_of_crk}.
+
+
+
+\begin{proof}
+Let us prove the equations \eqref{eq:c00}, \eqref{eq:ckk-c0k},\eqref{eq:crk_to_proof} resectively.
+\begin{enumerate}
+    \item $c(0,0) = \langle v_c, P_{0,0}\rangle = (0,\,1,\,-\tfrac{1}{3},\,\tfrac{1}{7},\ldots) \cdot (1,0,0,\ldots) = 0$.
+
+\item $c(k,k)-c(0,k) = 1$:
+
+Recall that
+\[
+c(r,k) = \langle v_c, P_{r,k} \rangle,
+\]
+where $v_c = (0,\,1,\,-\tfrac{1}{3},\,\tfrac{1}{7},\ldots,\tfrac{(-1)^{m+1}}{2^m-1},\ldots)$ and
+\[
+P_{r,k}(x) = (1+2x)^r(1+x)^{k-r}.
+\]
+
+For $r=k$, we have
+\[
+P_{k,k}(x) = (1+2x)^k = \sum_{m=0}^{k} \binom{k}{m} (2x)^m,
+\]
+so its coefficient sequence is $(1,\,2\binom{k}{1},\,2^2\binom{k}{2},\ldots,2^k\binom{k}{k},0,\ldots)$.
+
+Thus
+\[
+c(k,k) = \sum_{m=1}^{k} \binom{k}{m} 2^m \cdot \frac{(-1)^{m+1}}{2^m-1}.
+\]
+
+Similarly, for $r=0$,
+\[
+P_{0,k}(x) = (1+x)^k = \sum_{m=0}^{k} \binom{k}{m} x^m,
+\]
+so
+\[
+c(0,k) = \sum_{m=1}^{k} \binom{k}{m} \cdot \frac{(-1)^{m+1}}{2^m-1}.
+\]
+
+Subtracting gives
+\[
+c(k,k) - c(0,k) = \sum_{m=1}^{k} \binom{k}{m} (-1)^{m+1} \left( \frac{2^m}{2^m-1} - \frac{1}{2^m-1} \right)
+= \sum_{m=1}^{k} \binom{k}{m} (-1)^{m+1} = 1,
+\]
+by the binomial identity $\sum_{m=0}^{k} \binom{k}{m} (-1)^m = 0$.
+
+
+\item $c(r,k) = \frac{c(r,k-1) + c(r+1,k)}{2}$:
+
+By definition,
+\[
+c(r,k) = \langle v_c, P_{r,k} \rangle,
+\]
+where $P_{r,k}(x) = (1+2x)^r(1+x)^{k-r}$.
+
+From the polynomial identity \eqref{eq:2prk=prk+prk}:
+\[
+P_{r,k-1}(x) + P_{r+1,k}(x) = 2P_{r,k}(x).
+\]
+
+Using linearity of the inner product:
+\begin{align*}
+\langle v_c, P_{r,k-1}\rangle + \langle v_c, P_{r+1,k}\rangle
+&= \langle v_c, 2P_{r,k}\rangle \\
+&= 2\langle v_c, P_{r,k}\rangle.
+\end{align*}
+
+Thus,
+\[
+c(r,k-1) + c(r+1,k) = 2c(r,k),
+\]
+and dividing by $2$ gives
+\[
+c(r,k) = \frac{c(r,k-1) + c(r+1,k)}{2}.
+\]
+
+    
+\end{enumerate}
+\end{proof}
+    
+
+
+% Hence
+% \[
+% c(r,k) = \langle \sum q, P_{r,k} \rangle = 
+% \]
+% \[
+% = \langle (0,\bigg(\frac{(-1)^{j-1}}{2^j-1}\bigg)^{\infty}_{j=1}), P_{r,k} \rangle.
+% \]
+
+% Pak se suma da vytknout
+% \[
+% c(r,k) = \sum\langle  q, P_{r,k} \rangle,
+% \]
+
+
+% Od tohoto je to uz jen krucek k $b_{r,k}$
+\subsection{Corollaries}
+
+As a corollary, a finite vector $v_c$ can be embedded as an infinite sequence $(q_j)$ in $\ell^{2}$, enabling methods that require infinite-dimensional representations.
+
+\begin{definition}[Geometric vector $v_j$ and weight increment $q_j$]
+\label{definition:vjqj}
+Let $e_0=(1,0,0,\dots)$ denote the first standard basis vector of $\ell^{2}$.
+For each integer $j\ge 1$ we define the geometric vector
+\[
+v_j := \bigl(1,\,-2^{-j},\,( -2^{-j})^{2},\,( -2^{-j})^{3},\ldots \bigr),
+\]
+that is,
+\[
+(v_j)_m = (-2^{-j})^{m} \qquad \text{for all } m\ge 0.
+\]
+We then define the associated weight increment
+\[
+q_j := e_0 - v_j,
+\]
+which has the explicit coordinate form
+\[
+q_j = \bigl(0,\,2^{-j},\,-2^{-2j},\,2^{-3j},\,-2^{-4j},\ldots\bigr),
+\]
+so that $(q_j)_0 = 0$ and
+\[
+(q_j)_m = (-1)^{m-1}2^{-jm},\qquad m\ge 1.
+\]
+\end{definition}
+
+
+We now show that the vector $q_j$ belongs to the space $\ell^{p}$ by 
+verifying that it satisfies the defining condition~\eqref{eq:l2iflesstheninfty}.
+
+\begin{proof}
+By Definition~\ref{definition:vjqj} we have
+\[
+q(j) = \bigl(0,\,2^{-j},\,-2^{-2j},\,2^{-3j},\,-2^{-4j},\ldots\bigr),
+\]
+so for every $m \ge 1$,
+\[
+q(j)_m = (-1)^{m-1} 2^{-jm}.
+\]
+Fix $m \ge 1$. Then
+\[
+\sum_{j=1}^{\infty} q(j)_m
+ = \sum_{j=1}^{\infty} (-1)^{m-1} 2^{-jm}
+ = (-1)^{m-1} \sum_{j=1}^{\infty} (2^{-m})^{j}.
+\]
+The inner sum is a geometric series with first term $a = 2^{-m}$ and ratio
+$r = 2^{-m}$, where $0 < 2^{-m} < 1$. Hence
+\[
+\sum_{j=1}^{\infty} (2^{-m})^{j}
+ = \frac{2^{-m}}{1-2^{-m}},
+\]
+and therefore
+\[
+\sum_{j=1}^{\infty} q(j)_m
+ = (-1)^{m-1} \frac{2^{-m}}{1-2^{-m}}
+ = \frac{(-1)^{m-1}}{2^{m}-1}.
+\]
+Since $q(j)_0 = 0$ for all $j$, the zeroth component of the sum is also $0$.
+This proves the claim.
+\end{proof}
+
+\begin{proposition}
+\label{prop:sumq}
+The series of vectors $\sum_{j=1}^{\infty} q(j)$ converges in $\ell^{2}$ and its
+sum is given componentwise by
+\[
+\sum_{j=1}^{\infty} q(j)
+ = \left( 0,\;\biggl(\frac{(-1)^{k-1}}{2^{k}-1}\biggr)_{k=1}^{\infty} \right),
+\]
+\end{proposition}
+
+\begin{proof}
+We recall the formula for a geometric series
+\[
+S_n = a\,\frac{1-r^n}{1-r},
+\qquad
+S_\infty = \frac{a}{1-r}
+\quad\text{for } |r|<1.
+\]
+
+Next, we write out the first few rows of the vectors $q(j)$:
+\begin{align*}
+q(1) &= (0,2^{-1},-2^{-2},\cdots,(-1)^{k+1}2^{-k},\cdots)\\
+q(2) &= (0,2^{-2},-2^{-4},\cdots,(-1)^{k+1}2^{-2k},\cdots)
+\end{align*}
+and so on.  
+
+For each fixed column index $k \ge 1$ we now look at the $k$-th entries
+of these rows.
+which satisfies $0<2^{-k}<1$.
+
+Therefore, by the geometric series formula,
+\begin{align}
+&S_n = a\frac{1-r^n}{1-r}\\
+      &S_\infty = (-1)^{k+1}2^{-k}\frac{1-(\frac{(-1)^{k+1}2^{-2k}}{(-1)^{k+1}2^{-k}})^\infty}{1-(\frac{(-1)^{k+1}2^{-2k}}{(-1)^{k+1}2^{-k}})} = (-1)^{k+1}2^{-k}\frac{1-(2^{-k})^\infty}{1-(2^{-k})}=\\
+      &=\frac{(-1)^{k-1}}{2^k-1} = \sum_{j=1}^{\infty}q(j)
+\end{align}
+Since each $q(j)$ has zero in the first component, the zeroth component of the
+sum is also $0$.  This yields
+\[
+\sum_{j=1}^{\infty} q(j)
+ = \left( 0,\;\biggl(\frac{(-1)^{k-1}}{2^{k}-1}\biggr)_{k=1}^{\infty} \right),
+\]
+which is the desired result.
+\end{proof}
+
+Thus
+\[
+c(r,k)
+ = \left\langle \sum_{j=1}^{\infty} q(j),\, P_{r,k} \right\rangle.
+\]
+
+We recall that the inner product in an inner product space is linear in its
+first argument.  
+In particular, axioms (IP1)–(IP2) in Kreyszig~\cite[p.~129]{kreyszig1991introductory}
+give
+\[
+\langle x+y,\, z\rangle = \langle x, z\rangle + \langle y, z\rangle,
+\qquad
+\langle \alpha x,\, z\rangle = \alpha\,\langle x, z\rangle.
+\]
+We therefore use this linearity when computing 
+\(\langle \sum_{j=1}^{\infty} q(j),\, P_{r,k} \rangle\).
+
+Since $P_{r,k}$ has only finitely many nonzero components, linearity of the
+inner product in $\ell^{2}$ yields
+\[
+c(r,k)
+ = \left\langle \sum_{j=1}^{\infty} q(j),\, P_{r,k} \right\rangle
+ = \sum_{j=1}^{\infty} \langle q(j),\, P_{r,k} \rangle.
+\]
+
+\subsection{Notable candidate definitions}
+
+\begin{lemma}
+For integers $0 \le r < k$, the quantity $c(r,k)$ admits the representation
+\[
+c(r,k) = \sum_{m=1}^{\infty} \Bigl[\,1 - (1-2^{1-m})^{r}(1-2^{-m})^{\,k-r}\Bigr].
+\]
+\end{lemma}
+
+\begin{proof}
+By definition in $\ell^{2}$,
+\[
+c(r,k) = \langle v_c, P_{r,k} \rangle,
+\]
+where $v_c$ is our weight vector $v_c=(0,1,-\frac{1}{3},\frac{1}{7},\dots,\frac{(-1)^{i+1}}{2^i+1},\dots)$ and $P_{r,k}(x) = (1+2x)^{r}(1+x)^{\,k-r}$.
+
+Expanding the inner product gives
+\[
+c(r,k) = \sum_{j=1}^{k} (-1)^{j-1}\,\frac{1}{2^{j}-1}\,\alpha_j,
+\]
+with $\alpha_j$ the $j$-th coefficient of $P_{r,k}(x)$.
+
+Using the decomposition
+\[
+\frac{1}{2^{j}-1} = \sum_{m=1}^{\infty} 2^{-jm},
+\]
+and interchanging sums:
+\[
+c(r,k) = \sum_{m=1}^{\infty} \sum_{j=1}^{k} (-1)^{j-1}\,\alpha_j\,2^{-jm}.
+\]
+
+By the generating function identity $\sum_{j \ge 0}\alpha_j a^j = P_{r,k}(a)$:
+\[
+\sum_{j=1}^{\infty} (-1)^{j-1}\,\alpha_j\,2^{-jm}
+= 1 - P_{r,k}(-2^{-m})
+= 1 - (1-2^{1-m})^{r}(1-2^{-m})^{\,k-r}.
+\]
+
+Summing over $m$ gives the result.
+\end{proof}
+
+\subsection{brk}
+
+In what follows, we introduce a quantity that measures the change of
+\(c(r,k)\) along the \(r\)-direction.  
+It will play a central role in understanding how the values of \(c(r,k)\)
+propagate across each column \(k\) and may lead to approximation.
+
+\begin{definition}[\(b(r,k)\)]
+For integers \(k \ge 0\) and \(1 \le r \le k\) we define
+\[
+b(r,k) := c(r,k) - c(r-1,k).
+\]
+\end{definition}
+
+\begin{lemma}\label{lem:c-from-b}
+With the convention that empty sums are zero.
+For \(0 \le r \le k\) set
+\begin{equation}\label{eq:def-c-from-b}
+c(r,k) \;:=\; \sum_{j=1}^{k} b(1,j) \;+\; \sum_{i=1}^{r} b(i,k).
+\end{equation}
+Then \(c(r,k)\) satisfies all its previously stated equations.
+\begin{align}
+c(0,0) &= 0, \label{eq:c00-b}\\
+c(k,k)-c(0,k) &= 1, \label{eq:ckk-c0k-b}\\
+2c(r,k) &= c(r+1,k)+c(r,k-1), \qquad 0 \le r \le k-1,\ k\ge 1. \label{eq:crk-b}
+\end{align}
+\end{lemma}
+
+\begin{proof}
+We verify the three identities separately.
+
+\medskip
+\noindent\textbf{(i) The condition \eqref{eq:c00-b}.}
+For \(k=r=0\) the definition \eqref{eq:def-c-from-b} gives
+\[
+c(0,0) = \sum_{j=1}^{0} b(1,j) + \sum_{i=1}^{0} b(i,0) = 0,
+\]
+so \eqref{eq:c00-b} holds.
+
+\medskip
+\noindent\textbf{(ii) The condition \eqref{eq:ckk-c0k-b}.}
+For \(r=k\) we have
+\[
+c(k,k)
+ = \sum_{j=1}^{k} b(1,j) + \sum_{i=1}^{k} b(i,k),
+\qquad
+c(0,k)
+ = \sum_{j=1}^{k} b(1,j).
+\]
+Hence
+\[
+c(k,k) - c(0,k)
+ = \sum_{i=1}^{k} b(i,k).
+\]
+By construction of \(b(i,k)\) (each column corresponding to a fixed \(k\))
+we have
+\[
+\sum_{i=1}^{k} b(i,k) = 1,
+\]
+so \eqref{eq:ckk-c0k-b} follows.
+
+\medskip
+\noindent\textbf{(iii) The condition \eqref{eq:crk-b}.}
+
+\textcolor{red}{TODO: POMOC TADY JSEM ZTRACEN}
+
+\paragraph{Main identity.}
+Recall the definition
+\[
+b(r,k) := c(r,k) - c(r-1,k),
+\]
+for integers \( k \ge 0 \) and \( 1 \le r \le k \).
+
+We aim to prove the identity
+\[
+2c(r,k) = c(r+1,k) + c(r,k-1).
+\]
+
+First, observe that
+\[
+c(r+1,k) = b(r+1,k) + c(r,k),
+\]
+since \( b(r+1,k) = c(r+1,k) - c(r,k) \).
+Similarly,
+\[
+c(r,k-1) = b(r,k-1) + c(r-1,k-1).
+\]
+
+Substituting these into the right-hand side of the desired identity gives
+\begin{align*}
+c(r+1,k) + c(r,k-1)
+&= \bigl(b(r+1,k) + c(r,k)\bigr) + \bigl(b(r,k-1) + c(r-1,k-1)\bigr) \\
+&= c(r,k) + b(r+1,k) + b(r,k-1) + c(r-1,k-1).
+\end{align*}
+
+Thus, the equation \( 2c(r,k) = c(r+1,k) + c(r,k-1) \) is equivalent to
+\[
+c(r,k) = b(r+1,k) + b(r,k-1) + c(r-1,k-1).
+\]
+
+Finally, note that the identity
+\[
+2P_{r,k} = P_{r+1,k} + P_{r,k-1}
+\]
+holds for the polynomials \( P_{r,k} \). Since \( c(r,k) \) is defined via a linear inner product with \( P_{r,k} \), linearity implies
+\[
+2c(r,k) = c(r+1,k) + c(r,k-1),
+\]
+which completes the proof.
+\end{proof}
+
+
+\subsection{Matrix identity to show that b(r,k) is a function}
+\textcolor{red}{TODO:}
+
+\subsection{using Prk to construct Brk}
+\textcolor{red}{TODO:}
+a jeste chceme ukazat ze z $Prk$u umime $b_{rk}$, ale to je obdobne jako ze z $Prk$u umime $c_{rk}$ to uz mame nad timto
+
+
+\section{naznak aproximace brk?}
+
+We start with an approximation of $b_{r,k}$ like:
+$$
+b_{rk}=\frac{1}{H_{2k-2}-H_{k-2}}\cdot\frac{1}{r+k-2}
+$$
+First being well-known function to approximate, yielding
+$$
+b_{rk}\approx\frac{1}{ln(2)}\cdot\frac{1}{r+k-2}
+$$
+
+We substitute this approximation into all the lemmas equations, yelding for the first equation
+$$
+\sum_{i=1}^{k}b_{ik} \approx\frac{1}{ln(2)}(\frac{1}{k-1}+\frac{1}{k}+\frac{1}{k+1}+\cdots+\frac{1}{2k-2})\approx\frac{H_{2k-2}-H_{k-2}}{ln(2)}\approx \frac{ln(2)}{ln(2)} \approx 1.
+$$
+this is consistent with our assumption.
+
+Substituting into the second equation yields
+\begin{align*}
+\frac{1}{2}b_{r+1k}+\frac{1}{2}b_{rk-1}&\approx\frac{1}{ln2}\frac{1}{2}(\frac{1}{r+k-3}+\frac{1}{r+k-1})\approx\\
+&\approx\frac{1}{ln2}\frac{1}{2}\frac{r+k-1+r+k-3}{(r+k-3)(r+k-1)}\approx\frac{1}{ln2}\frac{r+k-2}{(r+k-3)(r+k-1)}.
+\end{align*}
+
+
+We check whether this result provides a sufficiently good approximation to the previously obtained value ($b_{rk}=\frac{1}{ln(2)}\cdot\frac{1}{r+k-2}$).
+
+We label the functions:
+$$
+f(r,k) = \frac{1}{ln(2)}\cdot\frac{1}{r+k-2}
+$$
+and
+$$
+g(r,k)=\frac{1}{ln2}\frac{r+k-2}{(r+k-3)(r+k-1)}.
+$$
+
+\subsection{Theory}
+\begin{definition}[Order of Magnitude, p.~19]
+It is said that $f(\varepsilon) = O(q(\varepsilon))$ for $\varepsilon \to 0$, if
+\[
+\lim_{\varepsilon \to 0} \frac{f(\varepsilon)}{q(\varepsilon)} = A, \quad 0 < |A| < \infty.
+\]
+\end{definition}
+
+In addition, it is said that the functions $f(\varepsilon)$ and $q(\varepsilon)$ have the same \emph{order of magnitude}. 
+strana 19 v Gao:
+\url{https://utbcz-my.sharepoint.com/:b:/g/personal/a_ulrich_utb_cz/IQCowD5Uz9tnQ4FZdzpTsfLLAYpgJpNYeJcZxR5YsaERZTI?e=BlmlFg}.
+
+
+Furthermore, de Bruijn mentions in Chapter~1.4 (\emph{Asymptotic equivalence}, p.~11) that:
+
+\begin{quote}
+We say that $f(x)$ and $g(x)$ are asymptotically equivalent as $x \to \infty$, if the quotient $f(x)/g(x)$ tends to unity. Our notation is
+\[
+f(x) \sim g(x) \qquad (x \to \infty).
+\]
+\end{quote}
+
+Alternatively, this can be expressed as:
+\[
+\lim_{x \to \infty} \frac{f(x)}{g(x)} = 1.
+\]
+
+
+This notation will also be used for all other ways of passing to a limit.
+
+
+\begin{align*}
+&\lim_{k\rightarrow\infty}\frac{f}{g} =\lim_{k\rightarrow\infty} \frac{\frac{1}{ln(2)}\cdot\frac{1}{r+k-2}}{\frac{1}{ln2}\frac{r+k-2}{(r+k-3)(r+k-1)}}=\\
+&=\lim_{k\rightarrow\infty}\frac{(r+k-3)(r+k-1)}{(r+k-2)^2}=[\frac{(r^2+rk-r+kr+k^2-k-3r-3k+3)}{(r+k)^2-2(r+k)2+4}]=\\
+&=[\frac{r^2+rk-r+kr+k^2-k-3r-3k+3}{r^2+2rk+k^2-4r-4k+4}=\lim_{k\rightarrow\infty}[\frac{k^2(1+...)}{k^2(1+...)}]=1    
+\end{align*}
+
+Thus, we have shown that $f(r,k)$ and $g(r,k)$ are asymptotically equivalent as $k \to \infty$, i.e.,
+\[
+f(r,k) \sim g(r,k) \qquad (k \to \infty),
+\]
+in the sense of de Bruijn~\cite[Ch.~1.4]{debruijn1981asymptotic}, since their quotient tends to unity.
+
+So we have shown that the functions $f(r,k)$ and $g(r,k)$ have the same order of magnitude.
+
+To confirm that also the actual values agree (at least up to a certain order \( n \)), we refer to Bender's concept concerning the comparison of two functions.
+
+\paragraph{Asymptotic Power Series (Bender \& Orszag, p.~89,\cite{bender2013advanced})}
+\url{https://utbcz-my.sharepoint.com/:b:/g/personal/a_ulrich_utb_cz/IQBKSQxcCYLyT7T8GdrWJyPHAVaVW0szQgG_BqGHQRLsQ10?e=7FC76l}
+In Chapter 3, Bender and Orszag define an asymptotic power series as follows:
+\begin{quote}
+The power series $\sum_{n=0}^\infty a_n (x-x_0)^n$ is said to be asymptotic to the function $y(x)$ as $x \to x_0$ if
+\[
+y(x) - \sum_{n=0}^N a_n (x-x_0)^n \ll (x-x_0)^N \qquad (x \to x_0)
+\]
+for every $N$.
+\end{quote}
+\textit{In words: The remainder after $N$ terms is much smaller than the last retained term as $x \to x_0$.}
+
+They also give an equivalent formulation:
+\begin{quote}
+\[
+y(x) - \sum_{n=0}^M a_n (x-x_0)^n \sim a_M (x-x_0)^M \qquad (x \to x_0)
+\]
+\end{quote}
+\textit{In words: If you subtract the first $M$ terms, the remainder is of the same order as the next term.}
+
+In particular, if two functions $f$ and $g$ have asymptotic expansions that agree up to order $n$, then their difference satisfies $f(x) - g(x) = O((x-x_0)^{n+1})$ as $x \to x_0$.
+
+Thus, if we wish to demonstrate that two functions agree up to order $n$, it suffices to show that their difference is $O((x-x_0)^{n+1})$ as $x \to x_0$.
+
+\subsubsection{Taylor series and limit approximation of f and g}
+First, we start with previously defined approximations $f(r,k)$ and $g(r,k)$.
+Since the following approximation methods are better used with one variable, we substitute:
+$$
+x :=r+k-2,
+$$
+yielding
+\begin{align*}
+    F(x) &= \frac{1}{ln(2)}\frac{1}{x}\\
+    G(x) &= \frac{1}{ln(2)}\frac{x}{x^2-1}
+\end{align*}
+
+Then we subtract these to show the the maximum error that can occur between these two approximations.
+$$
+R(x)=G(x)-F(x)=\frac{1}{ln(2)}(\frac{x}{x^2-1}-\frac{1}{x})=\frac{1}{ln(2)}\frac{1}{x(x^2-1)}
+$$
+
+We substitute $x\rightarrow t$, yielding
+
+\begin{align*}
+    R(t) = G(t) - F(t)= \frac{1}{ln(2)}\biggr(\frac{1}{\frac{1}{t}(\frac{1}{t^2}-1)}\biggl)= \frac{1}{ln(2)}\biggr(\frac{t^3}{1-t^2}\biggl)
+\end{align*}
+Now we do Taylor expansion up to third derivative, yielding:
+\begin{align*}
+T(t)&=0+0t+0t^2+\frac{6t^3}{3!}+O(t^4)\\    
+T(x)&=0+0\frac{1}{t}+0\frac{1}{x^2}+\frac{6}{3!}\frac{1}{x^3}+O(\frac{1}{x^4})
+\end{align*}
+Hence these functions agree up to order of $2$.
+
+We try different approach now (Spivak, page 418).
+\begin{quote}
+Following Spivak~\cite{SpivakMichael1994C}, two functions \( f \) and \( g \) are said to be \emph{equal up to order \( n \) at \( a \)} if
+\[
+\lim_{x \to a} \frac{f(x) - g(x)}{(x - a)^n} = 0.
+\]
+\end{quote}
+
+Using this approach with our functions $G(t)$ and $F(t)$ yields:
+
+\begin{align*}
+    2.)\lim_{x\rightarrow0^+}\frac{G(t)-F(t)}{t^2} &=0\\
+    3.)\lim_{x\rightarrow0^+}\frac{G(t)-F(t)}{t^3} &= \lim_{x\rightarrow0^+}\frac{t^3}{t^3(1-t^2)}=1
+\end{align*}
+Since the last $n$ for which the limit was zero was $n = 2$, the functions are equal up to order $2$ at $0$.
+
+
+
+\section{jak se lisi vysledky crk s missing a ck bez missing}
+- plus mozna i dukaz opet ze to opravdu bude fungovat vzdy
+
+\section{priklad pro dusana}
+
+\section{zamysleni - jak by slo crk aproximovat - future research}
+
+
+\bibliographystyle{alpha}
+\bibliography{bibli}
+
+\end{document}
