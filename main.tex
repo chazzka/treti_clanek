@@ -17,20 +17,16 @@
 \usepackage{xurl} % Enables flexible URL line breaking
 \usepackage{hyperref} % For clickable links
 \UseTblrLibrary{diagbox}
+\usepackage{nicematrix}
 
-
-\theoremstyle{remark}
-\newtheorem{remark}{Remark}
-
-\theoremstyle{theorem}
-\newtheorem{proposition}{Proposition}[section]
-
+\theoremstyle{plain}
 \newtheorem{theorem}{Theorem}[section]
-
-\newtheorem{lemma}{Lemma}[section]
-
+\newtheorem{lemma}[theorem]{Lemma}
+\newtheorem{proposition}[theorem]{Proposition}
 \theoremstyle{definition}
-\newtheorem{definition}{Definition}[section]
+\newtheorem{definition}[theorem]{Definition}
+\theoremstyle{remark}
+\newtheorem{remark}[theorem]{Remark}
 
 
 \title{treti clanek}
@@ -45,222 +41,150 @@
 \begin{itemize}
     \item V citacich ukazeme ze je potreba resit missing data
     \item pripomeneme strom a $c(k)$
+    \item popis se ze to deje casto v datech a ZMINIT CLANEK BURDA NOVAK
 \end{itemize}
 
-Let an HS-Tree be built from $n$ data points. Then the expected value of the depth of a data point in the tree is given by (viz druhý článek, CITACE)
-
+Let an HS-Tree be built from $n$ data points. Then the expected value of the depth of a data point in the tree is given by
+\begin{lemma}[Recurrence for $c(n)$]
+The expected depth satisfies
 \begin{align}
 c(n) &=
 \begin{cases}
-0  &  n = 0, \\
-1+\dfrac{\sum_{k=0}^{n} \binom{n}{k}c(k)}{2^n } &  n = 1,2,3,\dots.
-\end{cases}\label{eq:c'n_vyjadreno}
+0, & n = 0, \\
+1 + \dfrac{1 + \sum_{k=0}^{n-1} \binom{n}{k} \cdot c(k)}{2^n - 1}, & n \ge 1.
+\end{cases}
+\label{eq:cprime}
 \end{align}
+Moreover, it can equivalently be expressed as
+\begin{align}
+c(n) = \frac{\sum_{k=0}^{n}\binom{n}{k}\,\bigl(1 + c(k)\bigr)}{2^n}.
+\label{eq:cn-alternative}
+\end{align}
+\end{lemma}
 
-\section{Co je to crk -- lepsi verze}
-\begin{itemize}
-    \item nejprve zavedu problem, missing features v datech, chci pouzit nas HS tree, viz introduction, popis se ze to deje casto v datech a ZMINIT CLANEK BURDA NOVAK
-    \item chci pouzit nase c(n) protoze je to fajn funkce dobre aproximovatelna
-    \item mam problem kdyz nebyly missing data, proste jsme pouzili c(n), ale ted se nám kvuli Rkam exptected depth prodlouzi
-    \item takze po kazdem deleni se uz nezapocitava +1 k depth ale nejake +a k depth
-    \item a ted bychom chteli to $a$ takove, aby se celkova ocekavana depth nezmenila, to acko tedy vyrovna ten rozdil mezi tou depth c(k) mez missing a mezi (logicky vetsi) depth s missing.
-\end{itemize}
+\begin{proof}
+Starting from
+\[
+c'(n) = 1 + \frac{1 + \sum_{k=0}^{n-1} \binom{n}{k}\,c(k)}{2^n - 1},
+\]
+rewrite the extra term $1$ as $\binom{n}{0}\cdot 1$ and extend the sum:
+\[
+1 + \sum_{k=0}^{n-1} \binom{n}{k}\,c(k)
+= \sum_{k=0}^{n} \binom{n}{k}\,\bigl(1 + c(k)\bigr).
+\]
+Normalize by the full binomial sum $\sum_{j=0}^{n}\binom{n}{j}=2^n$:
+\[
+c(n) = \frac{\sum_{k=0}^{n}\binom{n}{k}\,\bigl(1 + c(k)\bigr)}{2^n}.
+\]
+\end{proof}
 
 
-\subsection{Jak teda $a$cko spocitat/odvodit?}
+\section{Model Extension for Missing Features}
+In this section, we aim to derive a parameter that adjusts the expected depth when missing features occur, ensuring consistency with the original model.
 
-Počet $R$ v uzlu odpovídá počtu \emph{missing} features.  
+\subsection{Tree Structures for Initial Partitioning}
+We consider an infinite HS-tree that recursively partitions its space. Computing the expected depth of such a tree (or forest) reduces to evaluating probabilities over all possible splits. At each level, data points are randomly assigned left or right with equal probability, analogous to coin flips:
+\[
+\text{Heads} \rightarrow \text{left}, \quad \text{Tails} \rightarrow \text{right}.
+\]
+Each split increases depth by one.
 
-Podobně jako v článku~\cite{ulrich2024} využijeme i zde analogii s mincemi pro vysvětlení
-náhodného dělení prostoru v Half-Space Trees. Tato metafora se ukázala jako mimořádně
-užitečná: každý prvek (data point) se při náhodném dělení chová podobně jako mince, která
-padá vlevo nebo vpravo podle toho, na které straně náhodně zvolené hyperroviny leží.
+In previous work, we introduced the function \( c(n) \), representing the expected depth given \( n \) coins at the root. We now extend this model to account for missing features. Missing outcomes are denoted by \( R \) (edge), assuming
+\[
+\Pr(H) = \Pr(T) = \Pr(R) = \tfrac{1}{3}.
+\]
+An \( R \)-coin propagates to both branches, altering the first split but not subsequent ones, which follow the original \( c(n) \) dynamics.
 
-HS-Tree tak můžeme interpretovat jako binární strom, kde se každý prvek v každém uzlu
-náhodně rozhoduje pro levou či pravou větev. Pokud známe počet prvků v uzlu, pak hloubka
-tohoto procesu závisí jen na tom, kolikrát se prvek rozdělí mezi větve---a tedy na počtu
-možných výsledků těchto ``náhodných hodů''.  
+To approximate this effect, we define an adjustment term \( a_{r,k} \), where \( r \) is the number of \( R \)-coins and \( k \) the total coins. This term compensates for the initial distortion so that, beyond the first level, the tree behaves as if no missing data were present. Table~\ref{tab:stromecek_batch3_1R} illustrates all possible first-split configurations under this extended model; deeper levels are irrelevant once the approximation is applied.
 
-Tato abstrakce nám dovoluje nahradit geometrické dělení jednoduchým modelem s mincemi:
-\begin{itemize}
-    \item H představuje data, která jednoznačně spadnou do levého half-space,
-    \item T představuje data, která spadnou do pravého half-space,
-    \item a zavádíme také stav R (\emph{edge}), který reprezentuje chybějící nebo
-          neurčitou hodnotu: takový prvek musíme poslat do obou větví současně.
-\end{itemize}
+\subsection{Example: One Missing Feature, Batch Size 3}
 
-Mince jsou tedy jen zjednodušený, ale přesný model chování bodů v Half-Space Tree:
-každý hod mincí zachycuje jeden krok náhodného dělení prostoru a umožňuje nám formálně
-vypsat všechny možné výsledky prvního rozdělení. Na těchto kombinacích pak stavíme
-výpočet očekávané hloubky.
-
-\paragraph{Motivace k tabulce stromečků.}
-V kořeni stromu hodíme všemi mincemi. Každá větev dostane odpovídající podmnožinu
-mincí a celý proces se v uzlech opakuje: znovu se hodí všemi mincemi, které do něj
-spadly. Strom pokračuje, dokud se mince nerozdělí natolik, že v listu zůstane pouze
-jediná mince.
-
-Očekávaná hloubka takového stromu je průměr přes všechny možné průběhy všech
-hodů. To je však obrovské množství možností.
-
-\paragraph{Proč nás zajímá pouze první hod?}
-Protože se pokusíme najít funkci takovou, která by dala očekávanou hloubku, za předpokladu, že dál už missing data nebudou a pojede se podle $c(n)$ kde n je počet prvků v aktuálním podstromu.
-
-Proto i Tabulka \ref{tab:stromecek_batch3_1R} když se podíváš zachycuje všechny možné výsledky \textbf{prvního rozdělení mincí}.
-
-Teď chceme tedy najít nějaký parametr $a$ takový, který když přidáme ke každé větvi s missing features (R) tak to vyjde stejně jakobychom missing features neměli $c(n)$. To je vyhodne zejmena protoze $c(n)$ uz umime velmi dobre pocitat i aproximovat.
-
-\subsection{Příklad s jedním R}
-Zkusme si tedy příklad kde máme jednu missing feature a batch size 3. Tabulka \ref{tab:stromecek_batch3_1R} nam ukaze jak to dopadne pro vsechny moznosti. Pomoci ni zkusime spocitat tedy ocekavanou hloubku $c(3)$, ale pozor, uz budeme přičítat parametr $a$ jako cenu za první krok, dál už je to $c(k)$, kde $k$ je pocet prvku v dané větvi (WLOG vždy levé).
-
+Consider a case with one missing feature and a batch size of $3$. Table~\ref{tab:stromecek_batch3_1R} shows all possible first-level splits. Using these configurations, we compute the expected depth $c(3)$, adding the adjustment parameter $a$ for the first split; subsequent levels follow the usual $c(k)$ for the size of the left branch (by symmetry, WLOG we take the left branch).
 
 \begin{table}[ht]
 \centering
-\scriptsize
-\setlength{\tabcolsep}{6pt}
-\renewcommand{\arraystretch}{1.1}
-\caption{Všechny možné výsledky prvního hodu pro tři mince s jedním~R.}
+\caption{All possible one-depth trees with three features and exactly one missing.}
 \label{tab:stromecek_batch3_1R}
-\begin{tabular}{|p{0.22\linewidth}|p{0.22\linewidth}|p{0.22\linewidth}|p{0.22\linewidth}|}
-\hline
-\begin{minipage}[t]{\linewidth}\begin{verbatim}
-{RHH}
- /    \
-{RHH}  {R}
-\end{verbatim}\end{minipage} &
-\begin{minipage}[t]{\linewidth}\begin{verbatim}
-{RHT}
- /    \
-{RH}   {RT}
-\end{verbatim}\end{minipage} &
-\begin{minipage}[t]{\linewidth}\begin{verbatim}
-{RTH}
- /    \
-{RH}   {RT}
-\end{verbatim}\end{minipage} &
-\begin{minipage}[t]{\linewidth}\begin{verbatim}
-{RTT}
- /    \
-{R}    {RTT}
-\end{verbatim}\end{minipage}
-\\ \hline
-\begin{minipage}[t]{\linewidth}\begin{verbatim}
-{HRH}
- /    \
-{RHH}  {R}
-\end{verbatim}\end{minipage} &
-\begin{minipage}[t]{\linewidth}\begin{verbatim}
-{HRT}
- /    \
-{RH}   {RT}
-\end{verbatim}\end{minipage} &
-\begin{minipage}[t]{\linewidth}\begin{verbatim}
-{TRH}
- /    \
-{RH}   {RT}
-\end{verbatim}\end{minipage} &
-\begin{minipage}[t]{\linewidth}\begin{verbatim}
-{TRT}
- /    \
-{R}    {RTT}
-\end{verbatim}\end{minipage}
-\\ \hline
-\begin{minipage}[t]{\linewidth}\begin{verbatim}
-{HHR}
- /    \
-{RHH}  {R}
-\end{verbatim}\end{minipage} &
-\begin{minipage}[t]{\linewidth}\begin{verbatim}
-{HTR}
- /    \
-{RH}   {RT}
-\end{verbatim}\end{minipage} &
-\begin{minipage}[t]{\linewidth}\begin{verbatim}
-{THR}
- /    \
-{RH}   {RT}
-\end{verbatim}\end{minipage} &
-\begin{minipage}[t]{\linewidth}\begin{verbatim}
-{TTR}
- /    \
-{R}    {RTT}
-\end{verbatim}\end{minipage}
-\\ \hline
+\begin{tabular}{cccc}
+\toprule
+\begin{forest}
+[RHH [RHH] [R]]
+\end{forest} &
+\begin{forest}
+[RHT [RH] [RT]]
+\end{forest} &
+\begin{forest}
+[RTH [RH] [RT]]
+\end{forest} &
+\begin{forest}
+[RTT [R] [RTT]]
+\end{forest} \\
+\begin{forest}
+[HRH [RHH] [R]]
+\end{forest} &
+\begin{forest}
+[HRT [RH] [RT]]
+\end{forest} &
+\begin{forest}
+[TRH [RH] [RT]]
+\end{forest} &
+\begin{forest}
+[TRT [R] [RTT]]
+\end{forest} \\
+\begin{forest}
+[HHR [RHH] [R]]
+\end{forest} &
+\begin{forest}
+[HTR [RH] [RT]]
+\end{forest} &
+\begin{forest}
+[THR [RH] [RT]]
+\end{forest} &
+\begin{forest}
+[TTR [R] [RTT]]
+\end{forest} \\
+\bottomrule
 \end{tabular}
 \end{table}
 
-
-
 \begin{enumerate}
-    \item nejprve přidáme stromečky s R, například pro batch 3, stačí si uvědomit že ocekavana hloubka je hloubka vsech kombinací, takze nahore vezmeme pocet prvku faktorial a podelime vzdy poctem R,poctem H a poctem T v tomto poradi, vynasobime a+c(pocet prvku v leve vetvi) - WLOG bereme jen levou vetev:
-    $$c(3) = \frac{1}{12}\left(\frac{3!}{1!2!0!}(a+c(3))+\frac{3!}{1!0!2!}(a+c(1))+\frac{3!}{1!1!1!}(a+c(2))\right)$$
-    
-    \item vyjádříme $a$:
-    $$a_{1,3} = c(3) - \left( \tfrac14 c(3) + \tfrac14 c(1) + \tfrac12 c(2) \right)$$
-
-    \item vyjádříme obecně $a_{r,k}$ 
-
-\end{enumerate}
-
-
-Díky symetrii (WLOG můžeme předpokládat, že $R$ jsou vždy vlevo), pak:
-
-
-\begin{enumerate}
-\item
-        \begin{align}
-        c(3)
-        &= \frac{1}{4}\Bigl(
-            \binom{2}{0}(a_{1,3}+c(1))
-            + \binom{2}{1}(a_{1,3}+c(2))
-            + \binom{2}{2}(a_{1,3}+c(3))
-        \Bigr)
-    \end{align}
-
-
-
-\item vyjádříme $a$
+    \item Compute the expected depth by weighting all configurations:
     \[
-        a_{1,3}
-        = c(3)
-        -\left(
-            \frac{1}{4}\binom{2}{0}c(1)
-            + \frac{1}{4}\binom{2}{1}c(2)
-            + \frac{1}{4}\binom{2}{2}c(3)
-        \right).
+    c(3) = \frac{1}{12}\Biggl(
+        \frac{3!}{1!2!0!}(a + c(3)) +
+        \frac{3!}{1!0!2!}(a + c(1)) +
+        \frac{3!}{1!1!1!}(a + c(2))
+    \Biggr).
     \]
 
+    \item Isolate $a$:
+    \[
+    a_{1,3} = c(3) - \Bigl( \tfrac14 c(3) + \tfrac14 c(1) + \tfrac12 c(2) \Bigr).
+    \]
 \end{enumerate}
 
-Obecně tedy:
+\subsection{Generalization}
 
+
+From this, the adjustment term $a_{r,k}$ satisfies:
 \begin{align}
-    c(k) 
-        &=1+\dfrac{\sum_{k=0}^{n} \binom{n}{k}(a_{r,k}+c(k))}{2^n }=\\
-        &= \frac{\sum_{i=0}^{k-r} \binom{k-r}{i} (a_{r,k} + c(r+i))}
-                {\sum_{j=0}^{k-r} \binom{k-r}{j}} = \\
-        &= \frac{a_{r,k}\sum_{i=0}^{k-r} \binom{k-r}{i}  + \sum_{i=0}^{k-r} \binom{k-r}{i} c(r+i)}
-                {\sum_{j=0}^{k-r} \binom{k-r}{j}} = \\
-        &= a_{r,k}
-           + \frac{\sum_{i=0}^{k-r} \binom{k-r}{i} \cdot c(r+i)}
-                  {2^{\,k-r}}.
+c(k)
+&= \frac{\sum_{i=0}^{k-r} \binom{k-r}{i}\,\bigl(a_{r,k} + c(r+i)\bigr)}
+        {\sum_{j=0}^{k-r} \binom{k-r}{j}} \\[6pt]
+&= \frac{a_{r,k}\sum_{i=0}^{k-r}\binom{k-r}{i} + \sum_{i=0}^{k-r}\binom{k-r}{i}\,c(r+i)}
+        {\sum_{j=0}^{k-r}\binom{k-r}{j}} \\[6pt]
+&= a_{r,k} + \frac{\sum_{i=0}^{k-r}\binom{k-r}{i}\,c(r+i)}{2^{\,k-r}}.
 \end{align}
-Odtud dostáváme
-\begin{align}
-    a_{r,k} = c(k) - \frac{\sum_{i=0}^{k-r} \binom{k-r}{i} \cdot c(r+i)}
-                  {2^{\,k-r}}
-\end{align}
-Označme si menšitel rozdílu (subtrahend) jako $c(r,k)$:
+Denote the subtrahend by $c(r,k)$.
 \begin{definition}
 \label{definition:c(r,k)}
-Pro dvě celá čísla r,k větší nebo rovno nula $0\le r \le k$ definujme
+For two integers $r,k$, with $0 \le r \le k$, we define
 \begin{align}
     c(r,k) = \frac{\sum_{i=0}^{k-r} \binom{k-r}{i} \cdot c(r+i)}{2^{\,k-r}}.
-\end{align}    
+\end{align}
 \end{definition}
 
-
-Můžeme zkusit par hodnot do Tabulky \ref{tab:cprime_values} (pro $c(n)$) a do Tabulky \ref{tab:crk_values} (pro $c(r,k)$).
+We can compute a few sample values for Table~\ref{tab:cprime_values} (for $c(n)$) and Table~\ref{tab:crk_values} (for $c(r,k)$).
 \begin{table}[htp]
 \centering
 \caption{Sample values of $c(n)$ with decimal and fractional approximations}
@@ -372,11 +296,50 @@ The following relations hold for all $k \ge 0$:
 c(k,k)&= \frac{\sum_{i'=0}^{0} \binom{0}{i'}\,c(k+i')}{2^{0}}
      = \binom{0}{0}\,c(k)
      = c(k).\\
-c(n) &= 1+\frac{\sum_{k=0}^{n} \binom{n}{k} c(k)}{2^n} =1+c(0,k).
+c(k) &= 1+\frac{\sum_{k=0}^{n} \binom{n}{k} c(k)}{2^n} =1+c(0,k).
 \end{align*}
 
 \end{proof}
 
+\subsection{Analogy for the provided lemma}
+\textcolor{red}{TODO: TOTO TROCHU VYLEPSIT (honza)}
+
+We define $c(r,k)$ as the expected depth \textbf{after the first partition}, under the assumption that no further missing features occur. This isolates the effect of incomplete data at level one; subsequent splits follow the pure model described by $c(k)$.
+
+To illustrate, consider the case with one missing feature and batch size four. Averaging over all first-level configurations leads to:
+\[
+c(1,4) = \binom{3}{2}c(3) + \binom{3}{1}c(2) + \binom{3}{3}c(4) + \binom{3}{0}c(1),
+\]
+which generalizes naturally to the recurrence:
+\[
+c(r,k) = \frac{c(r,k-1) + c(r+1,k)}{2}.
+\]
+
+This formulation mirrors the pure model but introduces an averaging step to capture the uncertainty introduced by missing features.
+
+\subsubsection*{Key Insight}
+\textbf{$c(r,k)$} represents the expected depth beyond the first split, assuming that from level two onward the process is complete (no missing data).
+
+Consequently:
+\begin{itemize}
+    \item $c(k)$ (or $c(n)$ in earlier sections) is the expected depth in the pure model.
+    \item $c(r,k)$ adjusts only for the first level; deeper levels behave as in the pure case.
+    \item When $r = 0$, the first split is already accounted for, so we subtract one step from $c(k)$.
+\end{itemize}
+
+This yields
+
+\begin{itemize}
+    \item $c(k,k) = c(k)$: If all features are missing, the first split adds no information; depth remains as in the pure model.
+    \item $c(0,k) = c(k) - 1$ for $k > 0$: With no missing features, the remaining depth equals the pure model depth minus the initial step.
+\end{itemize}
+
+This explanation makes the analogy explicit:
+\begin{itemize}
+    \item $c(k)$ is the original expected depth.
+    \item $c(r,k)$ is the adjusted depth after accounting for missingness at level one.
+    \item The subtraction of $1$ reflects that the first partition has already been counted.
+\end{itemize}
 
 \section{Defining \(c(r,k)\) independently of \(c(k)\)}
 While \(c(r,k)\) can be computed directly from the values \(c(k)\) as illustrated 
@@ -418,45 +381,46 @@ definition of \(c(r,k)\) accordingly:
 
 In this subsection we show that the values \(c(r,k)\) are uniquely determined.
 
-Mějme sadu rovnic
-\begin{align*}
-    c_{0,0}&=0\\
-    c_{k,k}-c_{0,k}&=1\\
-    c_{r,k}&=\frac{c_{r,k-1}+c_{r+1,k}}{2}
-\end{align*}
-Tato soustava má jediné řešení, dokážu:
-$c_{0,0}=0$, to je jednoznačně dané.
-Pak indukcí: $c_{r,k-1}\rightarrow c_{r,k}$
-Pod podmínkou $0\le r\le k$, $r,k\in \mathbb{N}$ přepíšu soustavu do tvaru:
-\begin{align*}
-    2c_{r,k}-c_{r+1,k}&=c_{r,k-1}\\
-    c_{k,k}-c_{0,k}&=1
-\end{align*}
-A zapíšu do matice
+% CESKA VERZE
+% Mějme sadu rovnic
+% \begin{align*}
+%     c_{0,0}&=0\\
+%     c_{k,k}-c_{0,k}&=1\\
+%     c_{r,k}&=\frac{c_{r,k-1}+c_{r+1,k}}{2}
+% \end{align*}
+% Tato soustava má jediné řešení, dokážu:
+% $c_{0,0}=0$, to je jednoznačně dané.
+% Pak indukcí: $c_{r,k-1}\rightarrow c_{r,k}$
+% Pod podmínkou $0\le r\le k$, $r,k\in \mathbb{N}$ přepíšu soustavu do tvaru:
+% \begin{align*}
+%     2c_{r,k}-c_{r+1,k}&=c_{r,k-1}\\
+%     c_{k,k}-c_{0,k}&=1
+% \end{align*}
+% A zapíšu do matice
 
-\[
-\left[
-\begin{array}{ccccc|c}
-    2 & -1 & 0 & \cdots & 0 & c_{0,k-1} \\
-    0 & 2 & -1 & \cdots & 0 & c_{1,k-1} \\
-    \vdots & \vdots & \vdots & \ddots & \vdots & \vdots \\
-    0 & 0 & \cdots & 2 & -1 & c_{k-1,k-1} \\
-    -1 & 0 & \cdots & 0 & 1 & 1
-\end{array}
-\right]
-\]
+% \[
+% \left[
+% \begin{array}{ccccc|c}
+%     2 & -1 & 0 & \cdots & 0 & c_{0,k-1} \\
+%     0 & 2 & -1 & \cdots & 0 & c_{1,k-1} \\
+%     \vdots & \vdots & \vdots & \ddots & \vdots & \vdots \\
+%     0 & 0 & \cdots & 2 & -1 & c_{k-1,k-1} \\
+%     -1 & 0 & \cdots & 0 & 1 & 1
+% \end{array}
+% \right]
+% \]
 
-Snadno z Laplaceova rozvoje podle posledního řádku plyne, že determint matice soustavy je nenulový, resp.
-\begin{align*}
-  \begin{vmatrix}
-    2 & -1 & 0 & \cdots & 0& 0 \\
-    0 & 2 & -1 & \cdots & 0& 0 \\
-    0 & 0 & 2 & \cdots & 0& 0 \\
-    \vdots & \vdots & \vdots & \ddots & \vdots &\vdots\\
-    0 & 0 & 0&\cdots & 2 & -1  \\
-    -1 & 0 & 0&\cdots & 0 & 1 
-  \end{vmatrix}&=2^k-1\\
-\end{align*}
+% Snadno z Laplaceova rozvoje podle posledního řádku plyne, že determint matice soustavy je nenulový, resp.
+% \begin{align*}
+%   \begin{vmatrix}
+%     2 & -1 & 0 & \cdots & 0& 0 \\
+%     0 & 2 & -1 & \cdots & 0& 0 \\
+%     0 & 0 & 2 & \cdots & 0& 0 \\
+%     \vdots & \vdots & \vdots & \ddots & \vdots &\vdots\\
+%     0 & 0 & 0&\cdots & 2 & -1  \\
+%     -1 & 0 & 0&\cdots & 0 & 1 
+%   \end{vmatrix}&=2^k-1\\
+% \end{align*}
 
 % Determinant matice $D$ je nenulový, protože:
 % Přímo z definice jediné nenulové permutace jsou:
@@ -468,9 +432,108 @@ Snadno z Laplaceova rozvoje podle posledního řádku plyne, že determint matic
 % Tím pádem přímo z definice je determinant nenulový $\rightarrow$ soustava má 1 řešení.
 % Známe tedy $c_{r,k-1}$ pro $0,....k-1$.
 % Z toho tedy jednoznačně určíme $c(r,k)$ pro $r=0,....k$.
+Let us consider the system of equations:
+\[
+\begin{aligned}
+    c_{0,0} &= 0,\\
+    c_{k,k} - c_{0,k} &= 1,\\
+    c_{r,k} &= \frac{c_{r,k-1} + c_{r+1,k}}{2}.
+\end{aligned}
+\]
+
+This system admits a unique solution. I will prove this as follows:
+
+First, \(c_{0,0} = 0\), which is uniquely determined.  
+Then, by induction, we have \(c_{r,k-1} \rightarrow c_{r,k}\).
+
+Under the condition \(0 \le r \le k,\; r,k \in \mathbb{N}\), the system can be rewritten as:
+\[
+\begin{aligned}
+    2c_{r,k} - c_{r+1,k} &= c_{r,k-1},\\
+    c_{k,k} - c_{0,k} &= 1.
+\end{aligned}
+\]
+
+We now express it in matrix form:
+\[
+\left(
+\begin{NiceArray}{ccccc|c}
+    2 & -1 & 0 & \Cdots & 0 & c_{0,k-1} \\
+    0 & 2 & -1 & \Cdots & 0 & c_{1,k-1} \\
+    \Vdots & \Vdots & \Vdots & \Ddots & \Vdots & \Vdots \\
+    0 & 0 & \Cdots & 2 & -1 & c_{k-1,k-1} \\
+    -1 & 0 & \Cdots & 0 & 1 & 1
+\end{NiceArray}
+\right)
+\]
+
+
+It follows easily from the Laplace expansion along the last row that the determinant of the system matrix is nonzero, namely:
+\[
+\begin{aligned}
+  \begin{vmatrix}
+    2 & -1 & 0 & \cdots & 0 & 0 \\
+    0 & 2 & -1 & \cdots & 0 & 0 \\
+    0 & 0 & 2 & \cdots & 0 & 0 \\
+    \vdots & \vdots & \vdots & \ddots & \vdots & \vdots\\
+    0 & 0 & 0 & \cdots & 2 & -1  \\
+    -1 & 0 & 0 & \cdots & 0 & 1 
+  \end{vmatrix} &= 2^k - 1.
+\end{aligned}
+\]
+
 
 \begin{remark}
-It is possible to compute column $k+1$ from column $k$.
+It is also possible to find an inverse matrix.
+
+\textcolor{red}{HELP VUBEC NEVIM CO TADY}
+
+\[
+B_2 =
+\begin{pmatrix}
+2 & 1 & 1 \\
+1 & 2 & 2 \\
+2 & 1 & 4
+\end{pmatrix},
+\qquad
+B_1 =
+\begin{pmatrix}
+2 & -1 & 0 \\
+0 & 2 & -1 \\
+-1 & 0 & 1
+\end{pmatrix}.
+\]
+
+Compute:
+\[
+C = B_2 \cdot B_1 =
+\begin{pmatrix}
+2 & 1 & 1 \\
+1 & 2 & 2 \\
+2 & 1 & 4
+\end{pmatrix}
+\begin{pmatrix}
+2 & -1 & 0 \\
+0 & 2 & -1 \\
+-1 & 0 & 1
+\end{pmatrix}
+=
+\begin{pmatrix}
+3 & 0 & 0 \\
+0 & 3 & 0 \\
+0 & 0 & 3
+\end{pmatrix}
+= 3I.
+\]
+
+Multiplying by \(\frac{1}{3}\) gives:
+\[
+\frac{1}{3} C = I,
+\]
+which shows that \(B_2 = 3 B_1^{-1}\), and hence \(B_1^{-1} = \frac{1}{3} B_2\).
+
+
+\subsection{Deriving the subsequent column from its predecessor}
 
 We now express each value $c(r,k)$, for $0 \le r \le k$, solely in terms of the
 preceding column $c(r,k-1)$.
@@ -696,7 +759,7 @@ Thus the column for $n=3$ is
 % \end{enumerate}
 
 
-\section{Alternative definition}
+\section{Alternative definitions}
 
 \subsection{Theory}
 \url{https://physics.bme.hu/sites/physics.bme.hu/files/users/BMETE15AF53_kov/Kreyszig%20-%20Introductory%20Functional%20Analysis%20with%20Applications%20(1).pdf} . 
@@ -871,10 +934,30 @@ where $\alpha_j$ is the coefficient of $x^{j}$ and all remaining entries are
 $0$.  
 Thus each $P_{r,k}$ is viewed as an element of $\ell^{2}$ and inner products
 such as $\langle P_{r,k}, v^{(k)} \rangle$ are understood in the standard 
-Hilbert space sense.
+Hilbert space sense. Table \ref{tab:prkcoefficients} shows several examples of $P_{r,k}$ coefficeints.
 \end{definition}
 
-We now show that the sequence $P_{r,n}$ belongs to the space $\ell^{2}$ by 
+\begin{table}[h!]
+\label{tab:prkcoefficients}
+\centering
+\begin{tabular}{c|cccc}
+$(r,k)$ & $\alpha_0$ & $\alpha_1$ & $\alpha_2$ & $\alpha_3$ \\
+\hline
+(0,0) & 1 & 0 & 0 & 0 \\
+(0,1) & 1 & 1 & 0 & 0 \\
+(1,1) & 1 & 2 & 0 & 0 \\
+(0,2) & 1 & 2 & 1 & 0 \\
+(1,2) & 1 & 3 & 2 & 0 \\
+(2,2) & 1 & 4 & 4 & 0 \\
+(0,3) & 1 & 3 & 3 & 1 \\
+(1,3) & 1 & 4 & 5 & 2 \\
+(2,3) & 1 & 5 & 8 & 4 \\
+(3,3) & 1 & 6 & 12 & 8 \\
+\end{tabular}
+\caption{Prk coefficients}
+\end{table}
+
+We now show that the sequence $P_{r,k}$ belongs to the space $\ell^{2}$ by 
 verifying that it satisfies the defining condition~\eqref{eq:l2iflesstheninfty}.
 
 \begin{proof}
@@ -1154,24 +1237,11 @@ c(r,k) = \frac{c(r,k-1) + c(r+1,k)}{2}.
 % Od tohoto je to uz jen krucek k $b_{r,k}$
 \subsection{Corollaries}
 
-As a corollary, a finite vector $v_c$ can be embedded as an infinite sequence $(q_j)$ in $\ell^{2}$, enabling methods that require infinite-dimensional representations.
+As a corollary, a finite vector $v_c$ can be interchanged for an infinite sequence $(q_j)$ in $\ell^{2}$, enabling methods that require infinite-dimensional representations.
 
-\begin{definition}[Geometric vector $v_j$ and weight increment $q_j$]
+\begin{definition}[Alternative geometric vector $q_j$]
 \label{definition:vjqj}
-Let $e_0=(1,0,0,\dots)$ denote the first standard basis vector of $\ell^{2}$.
 For each integer $j\ge 1$ we define the geometric vector
-\[
-v_j := \bigl(1,\,-2^{-j},\,( -2^{-j})^{2},\,( -2^{-j})^{3},\ldots \bigr),
-\]
-that is,
-\[
-(v_j)_m = (-2^{-j})^{m} \qquad \text{for all } m\ge 0.
-\]
-We then define the associated weight increment
-\[
-q_j := e_0 - v_j,
-\]
-which has the explicit coordinate form
 \[
 q_j = \bigl(0,\,2^{-j},\,-2^{-2j},\,2^{-3j},\,-2^{-4j},\ldots\bigr),
 \]
@@ -1185,7 +1255,31 @@ so that $(q_j)_0 = 0$ and
 We now show that the vector $q_j$ belongs to the space $\ell^{p}$ by 
 verifying that it satisfies the defining condition~\eqref{eq:l2iflesstheninfty}.
 
+
+
+\begin{lemma}
+\label{prop:sumq}
+The series of vectors $\sum_{j=1}^{\infty} q(j)$ converges in $\ell^{2}$ and its
+sum is given componentwise by
+\[
+\sum_{j=1}^{\infty} q(j)
+ = v_c,
+\]
+then $c(r,k)$ can be expressed as the inner product
+\begin{align*}
+c(r,k) = \left\langle v_c,\, P_{r,k} \right\rangle
+ = \left\langle \sum_{j=1}^{\infty} q(j),\, P_{r,k} \right\rangle.
+\end{align*}
+And we can even reorder the sum
+\begin{align*}
+c(r,k)
+ = \left\langle \sum_{j=1}^{\infty} q(j),\, P_{r,k} \right\rangle
+ = \sum_{j=1}^{\infty} \langle q(j),\, P_{r,k} \rangle.
+\end{align*}
+\end{lemma}
+
 \begin{proof}
+To prove the first equation,
 By Definition~\ref{definition:vjqj} we have
 \[
 q(j) = \bigl(0,\,2^{-j},\,-2^{-2j},\,2^{-3j},\,-2^{-4j},\ldots\bigr),
@@ -1204,131 +1298,146 @@ The inner sum is a geometric series with first term $a = 2^{-m}$ and ratio
 $r = 2^{-m}$, where $0 < 2^{-m} < 1$. Hence
 \[
 \sum_{j=1}^{\infty} (2^{-m})^{j}
- = \frac{2^{-m}}{1-2^{-m}},
+ = \frac{2^{-m}}{1-2^{-m}}=\frac{(-1)^{m-1}}{2^{m}-1} ,
 \]
 and therefore
 \[
-\sum_{j=1}^{\infty} q(j)_m
- = (-1)^{m-1} \frac{2^{-m}}{1-2^{-m}}
- = \frac{(-1)^{m-1}}{2^{m}-1}.
+\sum_{j=1}^{\infty} q(j)= v_c.
 \]
-Since $q(j)_0 = 0$ for all $j$, the zeroth component of the sum is also $0$.
-This proves the claim.
-\end{proof}
+%STARY PROOF PRES GEOMETRICKOU S
+% To prove the first equation, we recall the formula for a geometric series
+% \[
+% S_n = a\,\frac{1-r^n}{1-r},
+% \qquad
+% S_\infty = \frac{a}{1-r}
+% \quad\text{for } |r|<1.
+% \]
 
-\begin{proposition}
-\label{prop:sumq}
-The series of vectors $\sum_{j=1}^{\infty} q(j)$ converges in $\ell^{2}$ and its
-sum is given componentwise by
-\[
-\sum_{j=1}^{\infty} q(j)
- = \left( 0,\;\biggl(\frac{(-1)^{k-1}}{2^{k}-1}\biggr)_{k=1}^{\infty} \right),
-\]
-\end{proposition}
+% Next, we write out the first few rows of the vectors $q(j)$:
+% \begin{align*}
+% q(1) &= (0,2^{-1},-2^{-2},\cdots,(-1)^{k+1}2^{-k},\cdots)\\
+% q(2) &= (0,2^{-2},-2^{-4},\cdots,(-1)^{k+1}2^{-2k},\cdots)
+% \end{align*}
+% and so on.  
 
-\begin{proof}
-We recall the formula for a geometric series
-\[
-S_n = a\,\frac{1-r^n}{1-r},
-\qquad
-S_\infty = \frac{a}{1-r}
-\quad\text{for } |r|<1.
-\]
+% For each fixed column index $k \ge 1$ we now look at the $k$-th entries
+% of these rows.
+% which satisfies $0<2^{-k}<1$.
 
-Next, we write out the first few rows of the vectors $q(j)$:
-\begin{align*}
-q(1) &= (0,2^{-1},-2^{-2},\cdots,(-1)^{k+1}2^{-k},\cdots)\\
-q(2) &= (0,2^{-2},-2^{-4},\cdots,(-1)^{k+1}2^{-2k},\cdots)
-\end{align*}
-and so on.  
+% Therefore, by the geometric series formula,
+% \begin{align}
+% &S_n = a\frac{1-r^n}{1-r}\\
+%       &S_\infty = (-1)^{k+1}2^{-k}\frac{1-(\frac{(-1)^{k+1}2^{-2k}}{(-1)^{k+1}2^{-k}})^\infty}{1-(\frac{(-1)^{k+1}2^{-2k}}{(-1)^{k+1}2^{-k}})} = (-1)^{k+1}2^{-k}\frac{1-(2^{-k})^\infty}{1-(2^{-k})}=\\
+%       &=\frac{(-1)^{k-1}}{2^k-1} = \sum_{j=1}^{\infty}q(j)
+% \end{align}
+% Since each $q(j)$ has zero in the first component, the zeroth component of the
+% sum is also $0$.  This yields
+% \[
+% \sum_{j=1}^{\infty} q(j)
+%  = v_c,
+% \]
+% which is the desired result.
 
-For each fixed column index $k \ge 1$ we now look at the $k$-th entries
-of these rows.
-which satisfies $0<2^{-k}<1$.
-
-Therefore, by the geometric series formula,
-\begin{align}
-&S_n = a\frac{1-r^n}{1-r}\\
-      &S_\infty = (-1)^{k+1}2^{-k}\frac{1-(\frac{(-1)^{k+1}2^{-2k}}{(-1)^{k+1}2^{-k}})^\infty}{1-(\frac{(-1)^{k+1}2^{-2k}}{(-1)^{k+1}2^{-k}})} = (-1)^{k+1}2^{-k}\frac{1-(2^{-k})^\infty}{1-(2^{-k})}=\\
-      &=\frac{(-1)^{k-1}}{2^k-1} = \sum_{j=1}^{\infty}q(j)
-\end{align}
-Since each $q(j)$ has zero in the first component, the zeroth component of the
-sum is also $0$.  This yields
-\[
-\sum_{j=1}^{\infty} q(j)
- = \left( 0,\;\biggl(\frac{(-1)^{k-1}}{2^{k}-1}\biggr)_{k=1}^{\infty} \right),
-\]
-which is the desired result.
-\end{proof}
-
-Thus
+To prove the second equation, we have already proven that
 \[
 c(r,k)
  = \left\langle \sum_{j=1}^{\infty} q(j),\, P_{r,k} \right\rangle.
 \]
+And since we have proven that $\sum_{j=1}^{\infty} q(j) = v_c$ and also $c(r,k) = \left\langle  v_c, P_{r,k} \right\rangle$, we write
+\[
+c(r,k) = \left\langle  v_c, P_{r,k} \right\rangle
+ = \left\langle \sum_{j=1}^{\infty} q(j),\, P_{r,k} \right\rangle.
+\]
 
-We recall that the inner product in an inner product space is linear in its
-first argument.  
-In particular, axioms (IP1)–(IP2) in Kreyszig~\cite[p.~129]{kreyszig1991introductory}
-give
+To prove the third, reordered equation
+\[
+c(r,k)
+ = \Big\langle \sum_{j=1}^{\infty} q(j),\, P_{r,k} \Big\rangle
+ = \sum_{j=1}^{\infty} \langle q(j),\, P_{r,k} \rangle,
+\]
+we use the linearity of the inner product in its first argument.  
+By axioms (IP1)–(IP2) in Kreyszig~\cite[p.~129]{kreyszig1991introductory},
 \[
 \langle x+y,\, z\rangle = \langle x, z\rangle + \langle y, z\rangle,
 \qquad
 \langle \alpha x,\, z\rangle = \alpha\,\langle x, z\rangle.
 \]
-We therefore use this linearity when computing 
-\(\langle \sum_{j=1}^{\infty} q(j),\, P_{r,k} \rangle\).
 
-Since $P_{r,k}$ has only finitely many nonzero components, linearity of the
-inner product in $\ell^{2}$ yields
+Since $P_{r,k}$ has only finitely many nonzero components, the inner product in $\ell^{2}$ is linear for finite sums. For infinite sums, this property extends by continuity because $\ell^{2}$ is complete: if the series converges in the $\ell^{2}$ norm, then
 \[
-c(r,k)
- = \left\langle \sum_{j=1}^{\infty} q(j),\, P_{r,k} \right\rangle
- = \sum_{j=1}^{\infty} \langle q(j),\, P_{r,k} \rangle.
+\Big\langle \sum_{j=1}^{\infty} q(j),\, P_{r,k}\Big\rangle
+= \sum_{j=1}^{\infty} \langle q(j),\, P_{r,k}\rangle.
 \]
+\end{proof}
 
 \subsection{Notable candidate definitions}
 
 \begin{lemma}
-For integers $0 \le r < k$, the quantity $c(r,k)$ admits the representation
-\[
-c(r,k) = \sum_{m=1}^{\infty} \Bigl[\,1 - (1-2^{1-m})^{r}(1-2^{-m})^{\,k-r}\Bigr].
-\]
+For integers $0 \le r < k$ and $n>0$, the inner product admits the representation
+\begin{align}
+\langle q(j), P_{r,k} \rangle = \Bigl[\,1 - (1-2^{1-j})^{r}(1-2^{-j})^{\,k-r}\Bigr].\label{eq:crk=<qj,prk>}
+\end{align}
+
+
 \end{lemma}
 
 \begin{proof}
-By definition in $\ell^{2}$,
+We treat $P_{r,k}$ as a coefficient vector in $\ell^2$, but note that its polynomial form is
 \[
-c(r,k) = \langle v_c, P_{r,k} \rangle,
-\]
-where $v_c$ is our weight vector $v_c=(0,1,-\frac{1}{3},\frac{1}{7},\dots,\frac{(-1)^{i+1}}{2^i+1},\dots)$ and $P_{r,k}(x) = (1+2x)^{r}(1+x)^{\,k-r}$.
-
-Expanding the inner product gives
-\[
-c(r,k) = \sum_{j=1}^{k} (-1)^{j-1}\,\frac{1}{2^{j}-1}\,\alpha_j,
-\]
-with $\alpha_j$ the $j$-th coefficient of $P_{r,k}(x)$.
-
-Using the decomposition
-\[
-\frac{1}{2^{j}-1} = \sum_{m=1}^{\infty} 2^{-jm},
-\]
-and interchanging sums:
-\[
-c(r,k) = \sum_{m=1}^{\infty} \sum_{j=1}^{k} (-1)^{j-1}\,\alpha_j\,2^{-jm}.
+P_{r,k}(x) = (1+2x)^r(1+x)^{k-r}.
 \]
 
-By the generating function identity $\sum_{j \ge 0}\alpha_j a^j = P_{r,k}(a)$:
+
+We first expand $P_{r,k}$.
+\begin{align*}
+P_{r,k}(x) = (1+2x)^r(1+x)^{k-r}\\
+P_{r,k}(x) = \alpha_0+\alpha_1x+\alpha_2x^2+\dots+\alpha_kx^k
+\end{align*}
+Evaluating $P_{r,k}$ at $-2^{-j}$ yields
+\begin{align}
+    P_{r,k}(-2^{-j}) = \alpha_0+\alpha_1(-2^{-j})+\alpha_2(-2^{-j})^2+\dots+\alpha_k(-2^{-j})^k
+\end{align}
+Then we perform a scalar multiplication $\langle q(j),P_{r,k} \rangle$.
+\begin{multline}
+\bigl\langle (0,\,2^{-j},\,-2^{-2j},\,2^{-3j},\dots),\;(\alpha_0,\alpha_1,\dots,\alpha_k,0,0,\dots)\bigr\rangle=\\
+= \alpha_0\cdot0+\alpha_1\cdot 2^{-j} + \alpha_2\cdot (-2^{-2j}) + \alpha_3\cdot 2^{-3j} + \dots + \alpha_k\cdot(-1)^{k-1}2^{-kj} + 0+ \dots =\\
+=\alpha_0-(\alpha_0+\alpha_1\cdot (-2^{-j}) + \alpha_2\cdot (+2^{-2j}) + \alpha_3\cdot 2^{-3j} + \dots + \alpha_k\cdot(-2^{-j})^k + 0+ \dots)
+\end{multline}
+The subtrahend is exactly equal to $P_{r,k}(-2^{-j})$ as we have shown above and $\alpha_0 =1$, yielding
+$$\bigl\langle (0,\,2^{-j},\,-2^{-2j},\,2^{-3j},\dots),\;(\alpha_0,\alpha_1,\dots,\alpha_k,0,0,\dots)\bigr\rangle=1-P_{r,k}(-2^{-j}).$$
+We conclude:
 \[
-\sum_{j=1}^{\infty} (-1)^{j-1}\,\alpha_j\,2^{-jm}
-= 1 - P_{r,k}(-2^{-m})
-= 1 - (1-2^{1-m})^{r}(1-2^{-m})^{\,k-r}.
+\langle q(j), P_{r,k}\rangle = 1 - (1-2^{1-j})^r(1-2^{-j})^{k-r}.
 \]
 
-Summing over $m$ gives the result.
+\paragraph{Note:}Although $P_{r,k}$ is treated as a vector of coefficients, we allow ourselves to evaluate the polynomial for convenience, as this substitution reveals the closed form.
 \end{proof}
 
-\subsection{brk}
+\begin{theorem}
+For integers $0 \le r < k$ and $n>0$, the $c(r,k)$ admits the representation
+    \begin{align*}
+    c(r,k)=\sum_{j=1}^\infty(1 - (1-2^{1-j})^r(1-2^{-j})^{k-r})
+    \end{align*}
+\end{theorem}
+
+\begin{proof}
+    We shall prove this using the above proven equation \eqref{eq:crk=<qj,prk>}. Since 
+    \[
+c(r,k) = \left\langle  v_c, P_{r,k} \right\rangle
+ = \sum_{j=1}^{\infty} \left\langle q(j),\, P_{r,k} \right\rangle,
+\] and 
+\begin{align}
+\langle q(j), P_{r,k} \rangle = \Bigl[\,1 - (1-2^{1-j})^{r}(1-2^{-j})^{\,k-r}\Bigr],
+\end{align}
+then 
+\begin{align*}
+    c(r,k)=\sum_{j=1}^\infty(1 - (1-2^{1-j})^r(1-2^{-j})^{k-r})
+\end{align*}
+
+
+\end{proof}
+
+\section{Approximation of $c(r,k)$ function}
 
 In what follows, we introduce a quantity that measures the change of
 \(c(r,k)\) along the \(r\)-direction.  
@@ -1338,121 +1447,275 @@ propagate across each column \(k\) and may lead to approximation.
 \begin{definition}[\(b(r,k)\)]
 For integers \(k \ge 0\) and \(1 \le r \le k\) we define
 \[
-b(r,k) := c(r,k) - c(r-1,k).
+b(r,k) = c(r,k) - c(r-1,k).
 \]
 \end{definition}
 
-\begin{lemma}\label{lem:c-from-b}
-With the convention that empty sums are zero.
-For \(0 \le r \le k\) set
-\begin{equation}\label{eq:def-c-from-b}
-c(r,k) \;:=\; \sum_{j=1}^{k} b(1,j) \;+\; \sum_{i=1}^{r} b(i,k).
-\end{equation}
-Then \(c(r,k)\) satisfies all its previously stated equations.
+\begin{lemma} For integers \(1 \le r \le k\), $b(r,k)$ satisfies the following equations 
+\label{lemma:brk}
 \begin{align}
-c(0,0) &= 0, \label{eq:c00-b}\\
-c(k,k)-c(0,k) &= 1, \label{eq:ckk-c0k-b}\\
-2c(r,k) &= c(r+1,k)+c(r,k-1), \qquad 0 \le r \le k-1,\ k\ge 1. \label{eq:crk-b}
+    \sum_{j=1}^{k}b(j,k)&=1\label{eq:b_rkis1},\\
+    \frac{1}{2}b(r+1,k)+\frac{1}{2}b(r,k-1)&=b(r,k)\label{eq:0.5b+0.5b}
 \end{align}
 \end{lemma}
 
 \begin{proof}
-We verify the three identities separately.
+We now prove that these two equation hold.
+\begin{enumerate}
+    \item For the first equation:
+    \[
+    \sum_{j=1}^{k} b(j,k) = 1.
+    \]
+    By definition, $b(j,k) = c(j,k) - c(j-1,k)$, so the sum telescopes:
+    \[
+    \sum_{j=1}^{k} \bigl(c(j,k) - c(j-1,k)\bigr) = c(k,k) - c(0,k).
+    \]
+    Since $c(k,k) - c(0,k) =1$ (see \eqref{eq:ckk-c0k}), the result follows:
+    \[
+    \sum_{j=1}^{k} b(j,k) = 1.
+    \]
 
-\medskip
-\noindent\textbf{(i) The condition \eqref{eq:c00-b}.}
-For \(k=r=0\) the definition \eqref{eq:def-c-from-b} gives
-\[
-c(0,0) = \sum_{j=1}^{0} b(1,j) + \sum_{i=1}^{0} b(i,0) = 0,
-\]
-so \eqref{eq:c00-b} holds.
+    \item For the second equation:
+    \[
+    \frac{1}{2} b(r+1,k) + \frac{1}{2} b(r,k-1) = b(r,k).
+    \]
+    Using $b(r,k) = c(r,k) - c(r-1,k)$ and the recurrence
+    \[
+    2c(r,k) = c(r,k-1) + c(r+1,k),
+    \]
+    we compute:
+    \begin{align*}
+    \frac{1}{2} b(r+1,k) + \frac{1}{2} b(r,k-1)
+    &= \frac{1}{2}\bigl(c(r+1,k) - c(r,k)\bigr)
+     + \frac{1}{2}\bigl(c(r,k-1) - c(r-1,k-1)\bigr) \\
+    &= \frac{1}{2}\bigl(c(r+1,k) + c(r,k-1)\bigr)
+     - \frac{1}{2}\bigl(c(r,k) + c(r-1,k-1)\bigr) \\
+    &= c(r,k) - c(r-1,k) \\
+    &= b(r,k).
+    \end{align*}
+    This proves the second identity.
+\end{enumerate}
+\end{proof}
 
-\medskip
-\noindent\textbf{(ii) The condition \eqref{eq:ckk-c0k-b}.}
-For \(r=k\) we have
-\[
-c(k,k)
- = \sum_{j=1}^{k} b(1,j) + \sum_{i=1}^{k} b(i,k),
-\qquad
-c(0,k)
- = \sum_{j=1}^{k} b(1,j).
-\]
-Hence
-\[
-c(k,k) - c(0,k)
- = \sum_{i=1}^{k} b(i,k).
-\]
-By construction of \(b(i,k)\) (each column corresponding to a fixed \(k\))
-we have
-\[
-\sum_{i=1}^{k} b(i,k) = 1,
-\]
-so \eqref{eq:ckk-c0k-b} follows.
+Equations stated in Lemma \ref{lemma:brk} alone determine the $b(r,k)$ function. 
+\begin{lemma}[Uniqueness of coefficients]
+System of equations \eqref{eq:b_rkis1} and \eqref{eq:0.5b+0.5b} has a unique solution, making $b_{r,k}$ a well-defined function $b(r,k)$.
+\end{lemma}
 
-\medskip
-\noindent\textbf{(iii) The condition \eqref{eq:crk-b}.}
+Let us prove this by rewriting the equations into a matrix and showing nonzero determinant.
+\begin{proof}
 
-\textcolor{red}{TODO: POMOC TADY JSEM ZTRACEN}
-
-\paragraph{Main identity.}
-Recall the definition
+Under the condition \(1 \le r \le k,\; k \in \mathbb{N}\), the system can be rewritten as:
 \[
-b(r,k) := c(r,k) - c(r-1,k),
-\]
-for integers \( k \ge 0 \) and \( 1 \le r \le k \).
-
-We aim to prove the identity
-\[
-2c(r,k) = c(r+1,k) + c(r,k-1).
-\]
-
-First, observe that
-\[
-c(r+1,k) = b(r+1,k) + c(r,k),
-\]
-since \( b(r+1,k) = c(r+1,k) - c(r,k) \).
-Similarly,
-\[
-c(r,k-1) = b(r,k-1) + c(r-1,k-1).
+\begin{aligned}
+    2b(r,k) - b(r+1,k) &= b(r,k-1),\\
+    \sum_{j=1}^{k} b(j,k) &= 1.
+\end{aligned}
 \]
 
-Substituting these into the right-hand side of the desired identity gives
-\begin{align*}
-c(r+1,k) + c(r,k-1)
-&= \bigl(b(r+1,k) + c(r,k)\bigr) + \bigl(b(r,k-1) + c(r-1,k-1)\bigr) \\
-&= c(r,k) + b(r+1,k) + b(r,k-1) + c(r-1,k-1).
-\end{align*}
-
-Thus, the equation \( 2c(r,k) = c(r+1,k) + c(r,k-1) \) is equivalent to
+Expressing it in matrix form:
 \[
-c(r,k) = b(r+1,k) + b(r,k-1) + c(r-1,k-1).
+\left(
+\begin{NiceArray}{ccccc|c}
+    2 & -1 & 0 & \Cdots & 0 & b(1,k-1) \\
+    0 & 2 & -1 & \Cdots & 0 & b(2,k-1) \\
+    \Vdots & \Vdots & \Vdots & \Ddots & \Vdots & \Vdots \\
+    0 & 0 & \Cdots & 2 & -1 & b(k-1,k-1) \\
+    1 & 1 & \Cdots & 1 & 1 & 1
+\end{NiceArray}
+\right)
 \]
 
-Finally, note that the identity
+To compute the determinant, we perform a Laplace expansion along the last row.  
+\paragraph{Intermediate step}
+Add all previous rows to the last row and subtract this sum from the last row.  
+This transforms the last row into:
 \[
-2P_{r,k} = P_{r+1,k} + P_{r,k-1}
+(-1,\; 0,\; 0,\; \dots,\; 0,\; 2),
 \]
-holds for the polynomials \( P_{r,k} \). Since \( c(r,k) \) is defined via a linear inner product with \( P_{r,k} \), linearity implies
+so the determinant becomes:
 \[
-2c(r,k) = c(r+1,k) + c(r,k-1),
+\begin{vmatrix}
+    2 & -1 & 0 & \cdots & 0 \\
+    0 & 2 & -1 & \cdots & 0 \\
+    0 & 0 & 2 & \cdots & 0 \\
+    \vdots & \vdots & \vdots & \ddots & -1 \\
+    -1 & 0 & 0 & \cdots & 2
+\end{vmatrix} = 2^k-1.
 \]
-which completes the proof.
+
+Since $k>0$ this expression is nonzero.
 \end{proof}
 
 
-\subsection{Matrix identity to show that b(r,k) is a function}
-\textcolor{red}{TODO:}
+
+\subsection{Relations}
+We already know the properties satisfied by $b(r,k)$; now we still need to show the converse lemma, namely the conditions that $c(r,k)$ satisfies in terms of $b(r,k)$.
+
+\begin{lemma}[Converse relation between $c(r,k)$ and $b(r,k)$]
+For integers $k \ge 0$ and $0 \le r \le k$, the coefficients $c(r,k)$ satisfy:
+\[
+c(r,k) = \sum_{j=1}^{k} b(1,j) + \sum_{i=1}^{r} b(i,k).
+\]
+\end{lemma}
+
+\begin{proof}
+To prove this, we show that all the equations from \ref{theorem:3equations_of_crk} that uniqely define $c(r,k)$ hold.
+    \begin{enumerate}
+        \item $c(0,0)=0$:
+For $k=r=0$ the equation gives
+$$
+c(0,0) = \sum_{j=1}^{0} b(1,j) + \sum_{i=1}^{0} b(i,k) = 0,
+$$
+so this equation holds.
+        \item $c(k,k)-c(0,k) = 1$:
+    For this we use the already-proven equation \eqref{eq:b_rkis1}.
+    \begin{multline*}
+        c(k,k)-c(0,k)=\\
+        =\bigg(\sum_{j=1}^{k} b(1,j) + \sum_{i=1}^{k} b(i,k)\bigg)
+        - \bigg(\sum_{j=1}^{k} b(1,j) + \sum_{i=0}^{0}b(i,k)\bigg)=\\=
+        \sum_{i=1}^{k} b(i,k)=1
+    \end{multline*}
+    
+        \item $2c(r,k)=c(r+1,k)+c(r,k-1)$:
+    We start from \eqref{eq:0.5b+0.5b} and substitue with our lemma's equation:
+    \begin{multline*}
+         \frac{1}{2}c(r+1,k)+c(r,k-1) =\\
+        =\frac{1}{2}(\sum_{i=1}^{k}b(1,i)+\sum_{j=1}^{r+1}b(j,k)+\sum_{i=1}^{k-1}b(1,i)+\sum_{j=1}^{r}b(j,k-1))=\\
+        = \frac{1}{2}(\sum_{i=1}^{k-1}2b(1,i)+b(1,k)+b(1,k)+\sum_{j=1}^{r}b(j+1,k)+\sum_{j=1}^{r}b(j,k-1))=\\
+        = \frac{1}{2}(\sum_{i=1}^{k-1}2b(1,i)+b(1,k)+b(1,k)+\sum_{j=1}^{r}(b(j+1,k)+b(j,k-1)))=\\
+        = \frac{1}{2}(\sum_{i=1}^{k-1}2b(1,i)+b(1,k)+b(1,k)+\sum_{j=1}^{r}2b(r,k))=\\
+        =\frac{1}{2}(\sum_{i=1}^{k-1}2b(1,i)+2b(1,k)+\sum_{j=1}^{r}2b(r,k))=\\
+        =\sum_{i=1}^{k-1}b(1,i)+b(1,k)+\sum_{j=1}^{r}b(r,k)=\\
+        =\sum_{i=1}^{k}b(1,i)+\sum_{j=1}^{r}b(r,k)=c(r,k)
+    \end{multline*}
+    \end{enumerate}
+\end{proof}
 
 \subsection{using Prk to construct Brk}
 \textcolor{red}{TODO:}
-a jeste chceme ukazat ze z $Prk$u umime $b_{rk}$, ale to je obdobne jako ze z $Prk$u umime $c_{rk}$ to uz mame nad timto
+In the following, we shall show that $b_{r,k}$ can be expressed by the similar inner product as in the case of $c_{r,k}$. For this, we need to define a new multiplication vector $v_b$.
+
+\begin{definition}[Multiplication vector $v_b$]
+Define the vector
+\[
+v_b = \bigl(\, 1,\,-\tfrac{1}{3},\,\tfrac{1}{7},\,\ldots,\,\tfrac{(-1)^{i+1}}{2^i-1},\,\ldots\bigr).
+\]
+\end{definition}
+
+\begin{lemma}
+    Multiplication vector $v_b$ is a part of $\ell^{2}$.
+\end{lemma}
+
+\begin{proof}
+We recall again the condition \eqref{eq:l2iflesstheninfty} for item to be in $\ell^{2}$. The proof holds the same as for $v_c$, since we have only prepended the vector with zero which did not change the infinite sum.
+\end{proof}
+
+In what follows, we introduce a inner product for calcuating $b(r,k)$.
+\begin{lemma}
+    For integers \(k \ge 0\) and \(1 \le r \le k\) we say
+    \begin{align}
+        b(r,k) = \langle v_b,P_{r-1,k-1}\rangle
+    \end{align}
+\end{lemma}
+
+We shall prove this by showing that system of equations for $b(r,k)$ hold.
+\begin{proof} In this proof we shall prove that equations \eqref{eq:b_rkis1} and \eqref{eq:0.5b+0.5b} hold.
+\begin{enumerate}
+    \item We start with the first equation, $\sum_{j=1}^{k} b(j,k) = 1.$
+
+    \[
+\begin{array}{c|cccc}
+P(r,k) & \alpha_0 & \alpha_1 & \alpha_2 & \alpha_3 \\
+\hline
+(0,2) & 1 & 2 & 1 & 0 \\
+(1,2) & 1 & 3 & 2 & 0 \\
+(2,2) & 1 & 4 & 4 & 0 \\
+\end{array}
+\]
+
+\[
+\begin{aligned}
+\langle v_b, P_{0,2}\rangle &= 1 \cdot 1 + \Bigl(-\tfrac{1}{3}\Bigr)\cdot 2 + \Bigl(\tfrac{1}{7}\Bigr)\cdot 1
+= 1 - \tfrac{2}{3} + \tfrac{1}{7}
+= \tfrac{10}{21},\\[6pt]
+\langle v_b, P_{1,2}\rangle &= 1 \cdot 1 + \Bigl(-\tfrac{1}{3}\Bigr)\cdot 3 + \Bigl(\tfrac{1}{7}\Bigr)\cdot 2
+= 1 - 1 + \tfrac{2}{7}
+= \tfrac{2}{7},\\[6pt]
+\langle v_b, P_{2,2}\rangle &= 1 \cdot 1 + \Bigl(-\tfrac{1}{3}\Bigr)\cdot 4 + \Bigl(\tfrac{1}{7}\Bigr)\cdot 4
+= 1 - \tfrac{4}{3} + \tfrac{4}{7}
+= \tfrac{5}{21},
+\end{aligned}
+\] 
+yielding
+
+\[
+\sum_{j=1}^{3} b(j,k) = \langle v_b, P_{0,2}\rangle + \langle v_b, P_{1,2}\rangle + \langle v_b, P_{2,2}\rangle
+= \frac{21}{21} = 1.
+\]
+
+We claim that for every integer \(k \ge 0\),
 
 
-\section{naznak aproximace brk?}
+For \(r-1 = j-1\) and \(k-1\) fixed, the coefficient of \(x^m\) in \(P_{j-1,k-1}\) is
+\[
+\alpha_m(j-1,k-1) = \sum_{p+q=m} \binom{j-1}{p} 2^p \binom{k-j}{q}.
+\]
+
+Thus
+\[
+b(j,k) = \sum_{m=1}^{k-1} \alpha_m(j-1,k-1)\,\frac{(-1)^m}{2^m-1}.
+\]
+
+Summing over \(j=1,\dots,k\) gives
+\[
+\sum_{j=1}^{k} b(j,k)
+= \sum_{m=1}^{k-1} \frac{(-1)^m}{2^m-1} \sum_{j=1}^{k} \alpha_m(j-1,k-1).
+\]
+
+But
+\[
+\sum_{j=1}^{k} \alpha_m(j-1,k-1)
+= \sum_{j=1}^{k} \sum_{p+q=m} \binom{j-1}{p} 2^p \binom{k-j}{q}.
+\]
+
+Reindexing and using the hockey-stick identity, this collapses to
+\[
+\sum_{p+q=m} 2^p \binom{k}{p+q+1} = 2^m \binom{k}{m+1}.
+\]
+
+Therefore
+\[
+\sum_{j=1}^{k} b(j,k)
+= \sum_{m=1}^{k-1} \binom{k}{m+1} 2^m \cdot \frac{(-1)^m}{2^m-1}.
+\]
+
+Now observe that
+\[
+\frac{2^m}{2^m-1} - \frac{1}{2^m-1} = 1,
+\]
+so by grouping terms as in the proof for \(c(r,k)\), we get
+\[
+\sum_{m=1}^{k} \binom{k}{m} (-1)^{m+1} = 1,
+\]
+by the binomial identity \(\sum_{m=0}^{k} \binom{k}{m} (-1)^m = 0\).
+
+Hence
+\[
+\sum_{j=1}^{k} b(j,k) = 1.
+\]
+
+
+
+\end{enumerate}
+\end{proof}
+
+
+\subsection{Approximation}
 
 We start with an approximation of $b_{r,k}$ like:
 $$
-b_{rk}=\frac{1}{H_{2k-2}-H_{k-2}}\cdot\frac{1}{r+k-2}
+b_{rk}\approx\frac{1}{H_{2k-2}-H_{k-2}}\cdot\frac{1}{r+k-2}
 $$
 First being well-known function to approximate, yielding
 $$
@@ -1483,7 +1746,7 @@ $$
 g(r,k)=\frac{1}{ln2}\frac{r+k-2}{(r+k-3)(r+k-1)}.
 $$
 
-\subsection{Theory}
+\subsubsection{Theory}
 \begin{definition}[Order of Magnitude, p.~19]
 It is said that $f(\varepsilon) = O(q(\varepsilon))$ for $\varepsilon \to 0$, if
 \[
@@ -1605,8 +1868,6 @@ Since the last $n$ for which the limit was zero was $n = 2$, the functions are e
 - plus mozna i dukaz opet ze to opravdu bude fungovat vzdy
 
 \section{priklad pro dusana}
-
-\section{zamysleni - jak by slo crk aproximovat - future research}
 
 
 \bibliographystyle{alpha}
